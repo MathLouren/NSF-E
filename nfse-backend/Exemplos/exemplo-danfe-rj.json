@@ -1,0 +1,165 @@
+{
+  "ide": {
+    "cUF": 33,
+    "cNF": "00000001",
+    "natOp": "VENDA",
+    "mod": 55,
+    "serie": 1,
+    "nNF": 1,
+    "dhEmi": "2025-01-16T10:00:00-03:00",
+    "dhSaiEnt": "2025-01-16T10:30:00-03:00",
+    "tpNF": 1,
+    "idDest": 1,
+    "cMunFG": 3304557,
+    "tpImp": 1,
+    "tpEmis": 1,
+    "cDV": 1,
+    "tpAmb": 2,
+    "finNFe": 1,
+    "indFinal": 1,
+    "indPres": 1,
+    "procEmi": 0,
+    "verProc": "NFSE2026"
+  },
+  "emit": {
+    "CNPJ": "33045570000191",
+    "xNome": "EMPRESA EXEMPLO LTDA",
+    "xFant": "EMPRESA EXEMPLO",
+    "enderEmit": {
+      "xLgr": "RUA DAS FLORES",
+      "nro": "123",
+      "xBairro": "CENTRO",
+      "cMun": 3304557,
+      "xMun": "Rio de Janeiro",
+      "UF": "RJ",
+      "CEP": "20000000",
+      "cPais": 1058,
+      "xPais": "Brasil"
+    },
+    "IE": "123456789",
+    "CRT": 3
+  },
+  "dest": {
+    "CNPJ": "12345678000199",
+    "xNome": "CLIENTE EXEMPLO LTDA",
+    "enderDest": {
+      "xLgr": "AV. BRASIL",
+      "nro": "456",
+      "xBairro": "COPACABANA",
+      "cMun": 3304557,
+      "xMun": "Rio de Janeiro",
+      "UF": "RJ",
+      "CEP": "22000000",
+      "cPais": 1058,
+      "xPais": "Brasil"
+    },
+    "indIEDest": 1,
+    "IE": "987654321",
+    "email": "cliente@exemplo.com"
+  },
+  "det": [
+    {
+      "nItem": 1,
+      "prod": {
+        "cProd": "001",
+        "cEAN": "SEM GTIN",
+        "xProd": "PRODUTO EXEMPLO PARA TESTE",
+        "NCM": "8471.30.00",
+        "CFOP": 5102,
+        "uCom": "UN",
+        "qCom": 1.0000,
+        "vUnCom": 100.0000,
+        "vProd": 100.00,
+        "cEANTrib": "SEM GTIN",
+        "uTrib": "UN",
+        "qTrib": 1.0000,
+        "vUnTrib": 100.0000,
+        "indTot": 1
+      },
+      "imposto": {
+        "ICMS": {
+          "ICMS00": {
+            "orig": "0",
+            "CST": "00",
+            "modBC": 3,
+            "vBC": 100.00,
+            "pICMS": 18.00,
+            "vICMS": 18.00,
+            "vFCP": 2.00
+          }
+        },
+        "IPI": {
+          "IPITrib": {
+            "CST": "50",
+            "vBC": 100.00,
+            "pIPI": 15.00,
+            "vIPI": 15.00
+          }
+        },
+        "PIS": {
+          "PISAliq": {
+            "CST": "01",
+            "vBC": 100.00,
+            "pPIS": 1.65,
+            "vPIS": 1.65
+          }
+        },
+        "COFINS": {
+          "COFINSAliq": {
+            "CST": "01",
+            "vBC": 100.00,
+            "pCOFINS": 7.60,
+            "vCOFINS": 7.60
+          }
+        }
+      }
+    }
+  ],
+  "total": {
+    "ICMSTot": {
+      "vBC": 100.00,
+      "vICMS": 18.00,
+      "vICMSDeson": 0.00,
+      "vFCP": 2.00,
+      "vBCST": 0.00,
+      "vST": 0.00,
+      "vFCPST": 0.00,
+      "vFCPSTRet": 0.00,
+      "vProd": 100.00,
+      "vFrete": 0.00,
+      "vSeg": 0.00,
+      "vDesc": 0.00,
+      "vII": 0.00,
+      "vIPI": 15.00,
+      "vIPIDevol": 0.00,
+      "vPIS": 1.65,
+      "vCOFINS": 7.60,
+      "vOutro": 0.00,
+      "vNF": 115.00,
+      "vTotTrib": 44.25
+    }
+  },
+  "transp": {
+    "modFrete": 9,
+    "transporta": {
+      "CNPJ": "",
+      "xNome": "",
+      "IE": "",
+      "xEnder": "",
+      "xMun": "",
+      "UF": ""
+    }
+  },
+  "pag": {
+    "detPag": [
+      {
+        "indPag": 0,
+        "tPag": 1,
+        "vPag": 115.00
+      }
+    ]
+  },
+  "infAdic": {
+    "infCpl": "Informações complementares para teste do DANFE melhorado com FCP, código de barras e formatação correta para o RJ."
+  }
+}

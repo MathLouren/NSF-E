@@ -1,0 +1,216 @@
+{
+  "ide": {
+    "natOp": "VENDA DE MERCADORIA",
+    "mod": 55,
+    "serie": 1,
+    "tpNF": 1,
+    "idDest": 1,
+    "cMunFG": 3550308,
+    "tpImp": 1,
+    "tpEmis": 1,
+    "tpAmb": 2,
+    "finNFe": 1,
+    "indFinal": 1,
+    "indPres": 1,
+    "procEmi": 0,
+    "verProc": "1.0.0"
+  },
+  "emit": {
+    "cnpj": "00000000000191",
+    "xNome": "NF-E EMITIDA EM AMBIENTE DE HOMOLOGACAO - SEM VALOR FISCAL",
+    "xFant": "Empresa Teste",
+    "enderEmit": {
+      "xLgr": "Rua Teste",
+      "nro": "100",
+      "xBairro": "Centro",
+      "cMun": 3550308,
+      "xMun": "São Paulo",
+      "uf": "SP",
+      "cep": "01000000",
+      "cPais": 1058,
+      "xPais": "BRASIL",
+      "fone": "1133334444"
+    },
+    "ie": "000000000000",
+    "im": "00000000",
+    "cnae": "6201500",
+    "crt": 3
+  },
+  "dest": {
+    "cnpj": "00000000000272",
+    "xNome": "NF-E EMITIDA EM AMBIENTE DE HOMOLOGACAO - SEM VALOR FISCAL",
+    "enderDest": {
+      "xLgr": "Rua Cliente Teste",
+      "nro": "200",
+      "xBairro": "Vila Teste",
+      "cMun": 3550308,
+      "xMun": "São Paulo",
+      "uf": "SP",
+      "cep": "02000000",
+      "cPais": 1058,
+      "xPais": "BRASIL",
+      "fone": "1122223333"
+    },
+    "indIEDest": 9,
+    "email": "teste@teste.com"
+  },
+  "det": [
+    {
+      "nItem": 1,
+      "prod": {
+        "cProd": "PROD001",
+        "cEAN": "SEM GTIN",
+        "xProd": "PRODUTO TESTE - DESENVOLVIMENTO DE SOFTWARE",
+        "ncm": "61091000",
+        "cfop": 5102,
+        "uCom": "UN",
+        "qCom": 1.0000,
+        "vUnCom": 100.0000,
+        "vProd": 100.00,
+        "cEANTrib": "SEM GTIN",
+        "uTrib": "UN",
+        "qTrib": 1.0000,
+        "vUnTrib": 100.0000,
+        "indTot": 1
+      },
+      "imposto": {
+        "vTotTrib": 22.00,
+        "icms": {
+          "orig": "0",
+          "cst": "00",
+          "modBC": 0,
+          "vBC": 100.00,
+          "pICMS": 18.00,
+          "vICMS": 18.00
+        },
+        "pis": {
+          "cst": "01",
+          "vBC": 100.00,
+          "pPIS": 0.65,
+          "vPIS": 0.65
+        },
+        "cofins": {
+          "cst": "01",
+          "vBC": 100.00,
+          "pCOFINS": 3.00,
+          "vCOFINS": 3.00
+        }
+      }
+    },
+    {
+      "nItem": 2,
+      "prod": {
+        "cProd": "PROD002",
+        "cEAN": "SEM GTIN",
+        "xProd": "PRODUTO TESTE - CONSULTORIA TECNICA",
+        "ncm": "84713012",
+        "cfop": 5102,
+        "uCom": "UN",
+        "qCom": 2.0000,
+        "vUnCom": 50.0000,
+        "vProd": 100.00,
+        "cEANTrib": "SEM GTIN",
+        "uTrib": "UN",
+        "qTrib": 2.0000,
+        "vUnTrib": 50.0000,
+        "indTot": 1
+      },
+      "imposto": {
+        "vTotTrib": 22.00,
+        "icms": {
+          "orig": "0",
+          "cst": "00",
+          "modBC": 0,
+          "vBC": 100.00,
+          "pICMS": 18.00,
+          "vICMS": 18.00
+        },
+        "pis": {
+          "cst": "01",
+          "vBC": 100.00,
+          "pPIS": 0.65,
+          "vPIS": 0.65
+        },
+        "cofins": {
+          "cst": "01",
+          "vBC": 100.00,
+          "pCOFINS": 3.00,
+          "vCOFINS": 3.00
+        }
+      }
+    }
+  ],
+  "total": {
+    "icmsTot": {
+      "vBC": 200.00,
+      "vICMS": 36.00,
+      "vICMSDeson": 0.00,
+      "vFCP": 0.00,
+      "vBCST": 0.00,
+      "vST": 0.00,
+      "vFCPST": 0.00,
+      "vFCPSTRet": 0.00,
+      "vProd": 200.00,
+      "vFrete": 0.00,
+      "vSeg": 0.00,
+      "vDesc": 0.00,
+      "vII": 0.00,
+      "vIPI": 0.00,
+      "vIPIDevol": 0.00,
+      "vPIS": 1.30,
+      "vCOFINS": 6.00,
+      "vOutro": 0.00,
+      "vNF": 200.00,
+      "vTotTrib": 44.00
+    }
+  },
+  "transp": {
+    "modFrete": 9,
+    "transporta": {
+      "cnpj": "00000000000363",
+      "xNome": "TRANSPORTADORA TESTE",
+      "ie": "000000000000",
+      "xEnder": "RUA TRANSPORTADORA, 100",
+      "xMun": "SAO PAULO",
+      "uf": "SP"
+    },
+    "vol": [
+      {
+        "qVol": 1,
+        "esp": "CAIXA",
+        "marca": "MARCA",
+        "nVol": "1",
+        "pesoL": 1.000,
+        "pesoB": 1.200
+      }
+    ]
+  },
+  "cobr": {
+    "fat": {
+      "nFat": "001",
+      "vOrig": 200.00,
+      "vDesc": 0.00,
+      "vLiq": 200.00
+    },
+    "dup": [
+      {
+        "nDup": "001A",
+        "dVenc": "2025-10-20",
+        "vDup": 200.00
+      }
+    ]
+  },
+  "pag": {
+    "detPag": [
+      {
+        "indPag": 0,
+        "tPag": 1,
+        "vPag": 200.00
+      }
+    ]
+  },
+  "infAdic": {
+    "infAdFisco": "DOCUMENTO EMITIDO EM AMBIENTE DE HOMOLOGACAO",
+    "infCpl": "Pedido: 12345 | Vendedor: João Silva | Observação: Teste de emissão em homologação"
+  }
+}

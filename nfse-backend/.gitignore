@@ -1,0 +1,8 @@
+NFeStorage/Certificados/**
+NFeStorage/Backup/**
+Schemas/NFe/v4.00/**
+Schemas/NFSe/**
+config/endpoints.json
+config/tax_rules/**
+appsettings.Development.json
+
