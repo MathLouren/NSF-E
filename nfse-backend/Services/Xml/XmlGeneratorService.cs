@@ -72,7 +72,7 @@ namespace nfse_backend.Services.Xml
             return infNFe;
         }
 
-        private string GenerateNFeId(nfse_backend.Models.NFe.NFe nfe)
+        protected string GenerateNFeId(nfse_backend.Models.NFe.NFe nfe)
         {
             // Formato: NFe + cUF + AAMM + CNPJ + mod + serie + nNF + tpEmis + cNF + cDV
             var chaveAcesso = $"{nfe.Ide.cUF:00}{nfe.Ide.dhEmi:yyMM}{nfe.Emit.CNPJ}{nfe.Ide.mod:00}{nfe.Ide.serie:000}{nfe.Ide.nNF:000000000}{nfe.Ide.tpEmis}{nfe.Ide.cNF}";
@@ -98,7 +98,7 @@ namespace nfse_backend.Services.Xml
             return resto < 2 ? 0 : 11 - resto;
         }
 
-        private XElement GenerateIde(IdentificacaoNFe ide)
+        protected XElement GenerateIde(IdentificacaoNFe ide)
         {
             var ideElement = new XElement(nfe + "ide",
                 new XElement(nfe + "cUF", ide.cUF),
@@ -131,7 +131,7 @@ namespace nfse_backend.Services.Xml
             return ideElement;
         }
 
-        private XElement GenerateEmit(Emitente emit)
+        protected XElement GenerateEmit(Emitente emit)
         {
             var emitElement = new XElement(nfe + "emit");
 
@@ -162,7 +162,7 @@ namespace nfse_backend.Services.Xml
             return emitElement;
         }
 
-        private XElement GenerateDest(Destinatario dest)
+        protected XElement GenerateDest(Destinatario dest)
         {
             var destElement = new XElement(nfe + "dest");
 
@@ -224,7 +224,7 @@ namespace nfse_backend.Services.Xml
             return enderecoElement;
         }
 
-        private XElement GenerateDet(DetalheNFe det)
+        protected XElement GenerateDet(DetalheNFe det)
         {
             var detElement = new XElement(nfe + "det",
                 new XAttribute("nItem", det.nItem),
@@ -238,7 +238,7 @@ namespace nfse_backend.Services.Xml
             return detElement;
         }
 
-        private XElement GenerateProd(ProdutoNFe prod)
+        protected XElement GenerateProd(ProdutoNFe prod)
         {
             var prodElement = new XElement(nfe + "prod",
                 new XElement(nfe + "cProd", prod.cProd),
@@ -279,7 +279,7 @@ namespace nfse_backend.Services.Xml
             return prodElement;
         }
 
-        private XElement GenerateImposto(ImpostoNFe imposto)
+        protected XElement GenerateImposto(ImpostoNFe imposto)
         {
             var impostoElement = new XElement(nfe + "imposto");
 
@@ -317,7 +317,8 @@ namespace nfse_backend.Services.Xml
                 );
             }
 
-            if ((icms.CST == "10" || icms.CST == "30" || icms.CST == "70" || icms.CST == "90") && icms.vBCST.HasValue)
+            if ((icms.CST == "10" || icms.CST == "30" || icms.CST == "70" || icms.CST == "90") && 
+                icms.vBCST.HasValue && icms.pICMSST.HasValue && icms.vICMSST.HasValue)
             {
                 icmsDetail.Add(
                     new XElement(nfe + "vBCST", icms.vBCST.Value.ToString("F2", CultureInfo.InvariantCulture)),
@@ -341,7 +342,7 @@ namespace nfse_backend.Services.Xml
                 new XElement(nfe + "CST", ipi.CST)
             );
 
-            if (ipi.vBC.HasValue && ipi.pIPI.HasValue)
+            if (ipi.vBC.HasValue && ipi.pIPI.HasValue && ipi.vIPI.HasValue)
             {
                 ipiTrib.Add(
                     new XElement(nfe + "vBC", ipi.vBC.Value.ToString("F2", CultureInfo.InvariantCulture)),
@@ -361,7 +362,7 @@ namespace nfse_backend.Services.Xml
                 new XElement(nfe + "CST", pis.CST)
             );
 
-            if (pis.vBC.HasValue && pis.pPIS.HasValue)
+            if (pis.vBC.HasValue && pis.pPIS.HasValue && pis.vPIS.HasValue)
             {
                 pisAliq.Add(
                     new XElement(nfe + "vBC", pis.vBC.Value.ToString("F2", CultureInfo.InvariantCulture)),
@@ -381,7 +382,7 @@ namespace nfse_backend.Services.Xml
                 new XElement(nfe + "CST", cofins.CST)
             );
 
-            if (cofins.vBC.HasValue && cofins.pCOFINS.HasValue)
+            if (cofins.vBC.HasValue && cofins.pCOFINS.HasValue && cofins.vCOFINS.HasValue)
             {
                 cofinsAliq.Add(
                     new XElement(nfe + "vBC", cofins.vBC.Value.ToString("F2", CultureInfo.InvariantCulture)),
@@ -394,7 +395,7 @@ namespace nfse_backend.Services.Xml
             return cofinsElement;
         }
 
-        private XElement GenerateTotal(TotalNFe total)
+        protected XElement GenerateTotal(TotalNFe total)
         {
             var totalElement = new XElement(nfe + "total");
             var icmsTot = new XElement(nfe + "ICMSTot",
@@ -427,7 +428,7 @@ namespace nfse_backend.Services.Xml
             return totalElement;
         }
 
-        private XElement GenerateTransp(Transporte transp)
+        protected XElement GenerateTransp(Transporte transp)
         {
             var transpElement = new XElement(nfe + "transp",
                 new XElement(nfe + "modFrete", transp.modFrete)
@@ -501,7 +502,7 @@ namespace nfse_backend.Services.Xml
             return volElement;
         }
 
-        private XElement GenerateCobr(Cobranca cobr)
+        protected XElement GenerateCobr(Cobranca cobr)
         {
             var cobrElement = new XElement(nfe + "cobr");
 
@@ -545,7 +546,7 @@ namespace nfse_backend.Services.Xml
             return cobrElement;
         }
 
-        private XElement GeneratePag(Pagamento pag)
+        protected XElement GeneratePag(Pagamento pag)
         {
             var pagElement = new XElement(nfe + "pag");
 
@@ -591,7 +592,7 @@ namespace nfse_backend.Services.Xml
             return pagElement;
         }
 
-        private XElement GenerateInfAdic(InformacaoAdicional infAdic)
+        protected XElement GenerateInfAdic(InformacaoAdicional infAdic)
         {
             var infAdicElement = new XElement(nfe + "infAdic");
 

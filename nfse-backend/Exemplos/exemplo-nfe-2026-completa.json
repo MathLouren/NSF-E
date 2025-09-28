@@ -1,0 +1,240 @@
+{
+  "versao": "4.00",
+  "versaoLayout": "2026.001",
+  "numeroNotaTecnica": "2025.002",
+  "ide": {
+    "cUF": 33,
+    "cNF": "00000001",
+    "natOp": "Venda de mercadoria",
+    "mod": 55,
+    "serie": 1,
+    "nNF": 1,
+    "dhEmi": "2026-01-15T10:30:00-03:00",
+    "tpNF": 1,
+    "idDest": 1,
+    "cMunFG": 3304557,
+    "tpImp": 1,
+    "tpEmis": 1,
+    "cDV": 1,
+    "tpAmb": 2,
+    "finNFe": 1,
+    "indFinal": 1,
+    "indPres": 1,
+    "procEmi": 0,
+    "verProc": "NFSE2026-1.0"
+  },
+  "emit": {
+    "CNPJ": "12345678000195",
+    "xNome": "Empresa Exemplo Ltda",
+    "xFant": "Exemplo",
+    "enderEmit": {
+      "xLgr": "Rua das Flores",
+      "nro": "123",
+      "xCpl": "Sala 101",
+      "xBairro": "Centro",
+      "cMun": 3304557,
+      "xMun": "Rio de Janeiro",
+      "UF": "RJ",
+      "CEP": "20000000",
+      "cPais": 1058,
+      "xPais": "Brasil",
+      "fone": "2123456789"
+    },
+    "IE": "123456789",
+    "CRT": 3
+  },
+  "dest": {
+    "CNPJ": "98765432000123",
+    "xNome": "Cliente Exemplo Ltda",
+    "enderDest": {
+      "xLgr": "Av. Brasil",
+      "nro": "456",
+      "xCpl": "Andar 2",
+      "xBairro": "Copacabana",
+      "cMun": 3304557,
+      "xMun": "Rio de Janeiro",
+      "UF": "RJ",
+      "CEP": "22000000",
+      "cPais": 1058,
+      "xPais": "Brasil",
+      "fone": "2134567890"
+    },
+    "indIEDest": 1,
+    "IE": "987654321"
+  },
+  "det": [
+    {
+      "nItem": 1,
+      "prod": {
+        "cProd": "PROD001",
+        "cEAN": "7891234567890",
+        "xProd": "Produto Exemplo para Reforma Tributária 2026",
+        "NCM": "61091000",
+        "CFOP": 5102,
+        "uCom": "UN",
+        "qCom": 10.0000,
+        "vUnCom": 100.00,
+        "vProd": 1000.00,
+        "cEANTrib": "7891234567890",
+        "uTrib": "UN",
+        "qTrib": 10.0000,
+        "vUnTrib": 100.00,
+        "indTot": 1
+      },
+      "imposto": {
+        "ICMS": {
+          "orig": 0,
+          "CST": "00",
+          "vBC": 1000.00,
+          "pICMS": 18.00,
+          "vICMS": 180.00
+        },
+        "IPI": {
+          "cEnq": "999",
+          "CST": "00",
+          "vBC": 1000.00,
+          "pIPI": 10.00,
+          "vIPI": 100.00
+        }
+      }
+    }
+  ],
+  "total": {
+    "ICMSTot": {
+      "vBC": 1000.00,
+      "vICMS": 180.00,
+      "vICMSDeson": 0.00,
+      "vFCP": 0.00,
+      "vBCST": 0.00,
+      "vST": 0.00,
+      "vFCPST": 0.00,
+      "vFCPSTRet": 0.00,
+      "vProd": 1000.00,
+      "vFrete": 0.00,
+      "vSeg": 0.00,
+      "vDesc": 0.00,
+      "vII": 0.00,
+      "vIPI": 100.00,
+      "vIPIDevol": 0.00,
+      "vPIS": 0.00,
+      "vCOFINS": 0.00,
+      "vOutro": 0.00,
+      "vNF": 1100.00
+    }
+  },
+  "gruposIBS": [
+    {
+      "nItem": 1,
+      "UF": "RJ",
+      "codigoMunicipio": 3304557,
+      "nomeMunicipio": "Rio de Janeiro",
+      "vBCIBS": 1000.00,
+      "pIBS": 8.00,
+      "vIBS": 80.00,
+      "classificacaoTributaria": "IBS",
+      "codigoBeneficio": "BEN001",
+      "tipoOperacao": "VENDA"
+    }
+  ],
+  "gruposCBS": [
+    {
+      "nItem": 1,
+      "UF": "RJ",
+      "codigoMunicipio": 3304557,
+      "nomeMunicipio": "Rio de Janeiro",
+      "vBCCBS": 1000.00,
+      "pCBS": 2.00,
+      "vCBS": 20.00,
+      "classificacaoTributaria": "CBS",
+      "codigoBeneficio": "BEN002",
+      "tipoOperacao": "VENDA"
+    }
+  ],
+  "gruposIS": [
+    {
+      "nItem": 1,
+      "UF": "RJ",
+      "codigoMunicipio": 3304557,
+      "nomeMunicipio": "Rio de Janeiro",
+      "vBCIS": 1000.00,
+      "pIS": 1.00,
+      "vIS": 10.00,
+      "classificacaoTributaria": "IS",
+      "codigoBeneficio": "BEN003",
+      "tipoOperacao": "VENDA"
+    }
+  ],
+  "totaisIBS": {
+    "vBCIBS": 1000.00,
+    "vIBS": 80.00,
+    "vIBSDeson": 0.00,
+    "vFCPIBS": 0.00,
+    "vFCPIBSRet": 0.00
+  },
+  "totaisCBS": {
+    "vBCCBS": 1000.00,
+    "vCBS": 20.00,
+    "vCBSDeson": 0.00,
+    "vFCPCBS": 0.00,
+    "vFCPCBSRet": 0.00
+  },
+  "totaisIS": {
+    "vBCIS": 1000.00,
+    "vIS": 10.00,
+    "vISDeson": 0.00,
+    "vFCPIS": 0.00,
+    "vFCPISRet": 0.00
+  },
+  "totaisPorUF": [
+    {
+      "UF": "RJ",
+      "quantidadeItens": 1,
+      "vBCIBS": 1000.00,
+      "vIBS": 80.00,
+      "vBCCBS": 1000.00,
+      "vCBS": 20.00,
+      "vBCIS": 1000.00,
+      "vIS": 10.00
+    }
+  ],
+  "totaisPorMunicipio": [
+    {
+      "UF": "RJ",
+      "codigoMunicipio": 3304557,
+      "nomeMunicipio": "Rio de Janeiro",
+      "quantidadeItens": 1,
+      "vBCIBS": 1000.00,
+      "vIBS": 80.00,
+      "vBCCBS": 1000.00,
+      "vCBS": 20.00,
+      "vBCIS": 1000.00,
+      "vIS": 10.00
+    }
+  ],
+  "rastreabilidade": [
+    {
+      "nItem": 1,
+      "GTIN": "7891234567890",
+      "tipoRastreabilidade": "MEDICAMENTO",
+      "numeroLote": "LOTE001",
+      "dataFabricacao": "2025-12-01",
+      "dataValidade": "2027-12-01",
+      "codigoRastreamento": "TRACK001",
+      "informacoesAdicionais": "Produto com rastreabilidade obrigatória"
+    }
+  ],
+  "referencias": [
+    {
+      "nItem": 1,
+      "chaveAcessoReferenciada": "33202412345678000195550010000000010000000001",
+      "tipoDocumento": "NFE",
+      "nItemReferenciado": 1,
+      "dataEmissaoReferenciada": "2025-12-01",
+      "UFReferenciada": "RJ",
+      "motivoReferencia": "Devolução de mercadoria"
+    }
+  ],
+  "infAdic": {
+    "infCpl": "DANFE gerada conforme NT 2025.002 - Reforma Tributária 2026. Campos IBS, CBS e IS implementados conforme novo layout obrigatório."
+  }
+}

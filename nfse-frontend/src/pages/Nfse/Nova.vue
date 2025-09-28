@@ -20,7 +20,13 @@
     <form @submit.prevent="submitNfse" class="bg-white p-6 rounded-lg shadow-md">
       <InputField label="Data de Emissão" v-model="nfse.data_emissao" type="datetime-local" class="mb-4" />
       <h2 class="text-xl font-semibold mb-3">Dados do Prestador</h2>
-      <InputField label="CNPJ do Prestador" v-model="nfse.prestador.cnpj" placeholder="00.000.000/0000-00" class="mb-2" />
+      <CnpjInput 
+        label="CNPJ do Prestador" 
+        v-model="nfse.prestador.cnpj" 
+        @cnpj-consulted="preencherDadosPrestador"
+        placeholder="00.000.000/0000-00" 
+        class="mb-2" 
+      />
       <InputField label="Razão Social do Prestador" v-model="nfse.prestador.razaoSocial" class="mb-2" />
       <InputField label="Logradouro do Prestador" v-model="nfse.prestador.logradouro" class="mb-2" />
       <InputField label="Número do Prestador" v-model="nfse.prestador.numero" class="mb-2" />
@@ -34,7 +40,13 @@
       <InputField label="Email do Prestador" v-model="nfse.prestador.email" type="email" class="mb-4" />
 
       <h2 class="text-xl font-semibold mb-3">Dados do Tomador</h2>
-      <InputField label="CPF/CNPJ do Tomador" v-model="nfse.tomador.cpfCnpj" placeholder="000.000.000-00 ou 00.000.000/0000-00" class="mb-2" />
+      <CnpjInput 
+        label="CPF/CNPJ do Tomador" 
+        v-model="nfse.tomador.cpfCnpj" 
+        @cnpj-consulted="preencherDadosTomador"
+        placeholder="000.000.000-00 ou 00.000.000/0000-00" 
+        class="mb-2" 
+      />
       <InputField label="Nome/Razão Social do Tomador" v-model="nfse.tomador.nomeRazaoSocial" class="mb-2" />
       <InputField label="Logradouro do Tomador" v-model="nfse.tomador.logradouro" class="mb-2" />
       <InputField label="Número do Tomador" v-model="nfse.tomador.numero" class="mb-2" />
@@ -100,6 +112,7 @@
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import InputField from '@/components/InputField.vue'
+import CnpjInput from '@/components/CnpjInput.vue'
 import { useNfseStore } from '@/store/nfse'
 import { useCompanyStore } from '@/store/company'
 import { useServicesStore } from '@/store/services' // Adicionado
@@ -362,6 +375,33 @@ onMounted(async () => {
     });
   }
 })
+
+// Função para preencher dados do prestador após consulta do CNPJ
+const preencherDadosPrestador = (dadosEmpresa) => {
+  nfse.value.prestador.razaoSocial = dadosEmpresa.razaoSocial || ''
+  nfse.value.prestador.logradouro = dadosEmpresa.logradouro || ''
+  nfse.value.prestador.numero = dadosEmpresa.numero || ''
+  nfse.value.prestador.bairro = dadosEmpresa.bairro || ''
+  nfse.value.prestador.municipio = dadosEmpresa.municipio || ''
+  nfse.value.prestador.uf = dadosEmpresa.uf || ''
+  nfse.value.prestador.cep = dadosEmpresa.cep || ''
+  nfse.value.prestador.codigoMunicipio = dadosEmpresa.codigoMunicipio || ''
+  nfse.value.prestador.telefone = dadosEmpresa.telefone || ''
+  nfse.value.prestador.email = dadosEmpresa.email || ''
+}
+
+// Função para preencher dados do tomador após consulta do CNPJ
+const preencherDadosTomador = (dadosEmpresa) => {
+  nfse.value.tomador.nomeRazaoSocial = dadosEmpresa.razaoSocial || ''
+  nfse.value.tomador.logradouro = dadosEmpresa.logradouro || ''
+  nfse.value.tomador.numero = dadosEmpresa.numero || ''
+  nfse.value.tomador.bairro = dadosEmpresa.bairro || ''
+  nfse.value.tomador.municipio = dadosEmpresa.municipio || ''
+  nfse.value.tomador.uf = dadosEmpresa.uf || ''
+  nfse.value.tomador.cep = dadosEmpresa.cep || ''
+  nfse.value.tomador.telefone = dadosEmpresa.telefone || ''
+  nfse.value.tomador.email = dadosEmpresa.email || ''
+}
 
 const submitNfse = async () => {
   console.log('NFS-e Data:', nfse.value)

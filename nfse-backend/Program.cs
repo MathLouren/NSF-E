@@ -20,6 +20,9 @@ using nfse_backend.Services.Armazenamento;
 using nfse_backend.Services.NotaFiscal;
 using nfse_backend.Services.NFe;
 using nfse_backend.Services.Monitoramento;
+using nfse_backend.Services.Validation;
+using nfse_backend.Services.Calculation;
+using nfse_backend.Services.Audit;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -29,7 +32,13 @@ builder.Services.AddDbContext<AppDbContext>(opt =>
 );
 builder.Services.AddAutoMapper(typeof(AutoMapperProfile));
 QuestPDF.Settings.License = LicenseType.Community;
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.PropertyNamingPolicy = null; // Manter nomes originais
+        options.JsonSerializerOptions.WriteIndented = true;
+        options.JsonSerializerOptions.PropertyNameCaseInsensitive = true;
+    });
 builder.Services.AddScoped<IProductRepository, ProductRepository>();
 builder.Services.AddScoped<IProductService, ProductService>();
 builder.Services.AddScoped<IServiceRepository, ServiceRepository>();
@@ -47,14 +56,23 @@ builder.Services.AddSingleton<CalculoImpostosService>();
 builder.Services.AddSingleton<TabelasImpostosService>();
 builder.Services.AddScoped<EventosNFeService>();
 builder.Services.AddScoped<DanfeService>();
+builder.Services.AddScoped<Danfe2026Service>();
 builder.Services.AddSingleton<ConfiguracaoNFeService>();
+
+// Serviços NF-e 2026
+builder.Services.AddSingleton<XmlGenerator2026Service>();
+builder.Services.AddScoped<NFe2026ValidationService>();
+builder.Services.AddScoped<NFe2026CalculationService>();
+builder.Services.AddScoped<NFe2026AuditService>();
+builder.Services.AddScoped<NFe2026Service>();
 builder.Services.AddScoped<ArmazenamentoSeguroService>();
 builder.Services.AddScoped<NFeService>();
 builder.Services.AddScoped<ContingenciaNFeService>();
 builder.Services.AddScoped<AuditoriaService>();
 
 // Serviços de monitoramento
-builder.Services.AddHostedService<MonitoramentoService>();
+builder.Services.AddSingleton<MonitoramentoService>();
+builder.Services.AddHostedService<MonitoramentoService>(provider => provider.GetRequiredService<MonitoramentoService>());
 
 // HttpClient com Polly para resiliência
 builder.Services.AddHttpClient<SefazWebServiceClient>();

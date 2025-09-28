@@ -17,6 +17,7 @@
       </div>
       <RouterLink to="/nfe/emitir" class="block p-3 hover:bg-gray-100 pl-6">Emitir NF-e</RouterLink>
       <RouterLink to="/nfe/lista" class="block p-3 hover:bg-gray-100 pl-6">NF-e Emitidas</RouterLink>
+      <RouterLink to="/nfe/danfe-versao" class="block p-3 hover:bg-gray-100 pl-6">🎯 DANFE Versões</RouterLink>
       <RouterLink to="/nfe/configuracao" class="block p-3 hover:bg-gray-100 pl-6">Config. NF-e</RouterLink>
       
       <!-- Configurações -->

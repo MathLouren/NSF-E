@@ -178,7 +178,7 @@ namespace nfse_backend.Services.Impostos
             return ObterMVA(ncm, uf) > 0;
         }
 
-        public async Task AtualizarTabelasAsync()
+        public Task AtualizarTabelasAsync()
         {
             try
             {
@@ -191,11 +191,12 @@ namespace nfse_backend.Services.Impostos
                 InicializarTabelas();
                 
                 _logger.LogInformation("Tabelas de impostos atualizadas com sucesso");
+                return Task.CompletedTask;
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Erro ao atualizar tabelas de impostos");
-                throw;
+                return Task.FromException(ex);
             }
         }
 
@@ -210,5 +211,156 @@ namespace nfse_backend.Services.Impostos
                 ["UltimaAtualizacao"] = DateTime.Now
             };
         }
+
+        #region Métodos para NF-e 2026
+
+        public decimal ObterAliquotaIBS(string ncm, string uf, int codigoMunicipio)
+        {
+            // Implementar consulta à tabela de alíquotas IBS
+            // Por enquanto, retorna valores padrão baseados no NCM e UF
+            var ncmInicio = ncm.Substring(0, 4);
+            
+            // Alíquotas padrão por categoria de produto
+            if (ncmInicio.StartsWith("3004") || ncmInicio.StartsWith("3005") || ncmInicio.StartsWith("3006"))
+                return 18.0m; // Medicamentos
+            
+            if (ncmInicio.StartsWith("2203") || ncmInicio.StartsWith("2204") || ncmInicio.StartsWith("2205"))
+                return 25.0m; // Bebidas alcoólicas
+            
+            if (ncmInicio.StartsWith("2710") || ncmInicio.StartsWith("2711") || ncmInicio.StartsWith("2712"))
+                return 15.0m; // Combustíveis
+            
+            // Alíquota padrão
+            return 12.0m;
+        }
+
+        public decimal ObterAliquotaCBS(string ncm, string uf, int codigoMunicipio)
+        {
+            // Implementar consulta à tabela de alíquotas CBS
+            var ncmInicio = ncm.Substring(0, 4);
+            
+            // Alíquotas padrão por categoria de produto
+            if (ncmInicio.StartsWith("3004") || ncmInicio.StartsWith("3005") || ncmInicio.StartsWith("3006"))
+                return 3.0m; // Medicamentos
+            
+            if (ncmInicio.StartsWith("2203") || ncmInicio.StartsWith("2204") || ncmInicio.StartsWith("2205"))
+                return 5.0m; // Bebidas alcoólicas
+            
+            if (ncmInicio.StartsWith("2710") || ncmInicio.StartsWith("2711") || ncmInicio.StartsWith("2712"))
+                return 2.0m; // Combustíveis
+            
+            // Alíquota padrão
+            return 1.5m;
+        }
+
+        public decimal ObterAliquotaIS(string ncm, string uf, int codigoMunicipio)
+        {
+            // Implementar consulta à tabela de alíquotas IS
+            var ncmInicio = ncm.Substring(0, 4);
+            
+            // Alíquotas padrão por categoria de produto
+            if (ncmInicio.StartsWith("3004") || ncmInicio.StartsWith("3005") || ncmInicio.StartsWith("3006"))
+                return 0.0m; // Medicamentos isentos
+            
+            if (ncmInicio.StartsWith("2203") || ncmInicio.StartsWith("2204") || ncmInicio.StartsWith("2205"))
+                return 8.0m; // Bebidas alcoólicas
+            
+            if (ncmInicio.StartsWith("2710") || ncmInicio.StartsWith("2711") || ncmInicio.StartsWith("2712"))
+                return 0.0m; // Combustíveis isentos
+            
+            // Alíquota padrão
+            return 0.0m;
+        }
+
+        public bool ValidarClassificacaoTributaria(string ncm, string uf, int codigoMunicipio, string classificacao)
+        {
+            // Implementar validação de classificação tributária
+            // Verificar se o NCM pode ter a classificação informada na UF/município
+            var ncmInicio = ncm.Substring(0, 4);
+            
+            switch (classificacao.ToUpper())
+            {
+                case "IBS":
+                    // IBS aplicável para a maioria dos produtos
+                    return true;
+                
+                case "CBS":
+                    // CBS aplicável para produtos específicos
+                    return ncmInicio.StartsWith("3004") || ncmInicio.StartsWith("3005") || 
+                           ncmInicio.StartsWith("2203") || ncmInicio.StartsWith("2204");
+                
+                case "IS":
+                    // IS aplicável para produtos seletivos
+                    return ncmInicio.StartsWith("2203") || ncmInicio.StartsWith("2204") || 
+                           ncmInicio.StartsWith("2205") || ncmInicio.StartsWith("2206");
+                
+                default:
+                    return false;
+            }
+        }
+
+        public Dictionary<string, decimal> ObterAliquotasPorUF(string ncm, int codigoMunicipio)
+        {
+            // Implementar consulta de alíquotas por UF
+            var aliquotas = new Dictionary<string, decimal>();
+            
+            // Alíquotas padrão por UF (exemplo)
+            var ufs = new[] { "AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", 
+                             "MT", "MS", "MG", "PA", "PB", "PR", "PE", "PI", "RJ", "RN", 
+                             "RS", "RO", "RR", "SC", "SP", "SE", "TO" };
+            
+            foreach (var uf in ufs)
+            {
+                aliquotas[uf] = ObterAliquotaIBS(ncm, uf, codigoMunicipio);
+            }
+            
+            return aliquotas;
+        }
+
+        public List<string> ObterCodigosBeneficio(string ncm, string uf, int codigoMunicipio)
+        {
+            // Implementar consulta de códigos de benefício fiscal
+            var codigos = new List<string>();
+            
+            var ncmInicio = ncm.Substring(0, 4);
+            
+            // Códigos de benefício por categoria
+            if (ncmInicio.StartsWith("3004") || ncmInicio.StartsWith("3005") || ncmInicio.StartsWith("3006"))
+            {
+                codigos.Add("MED001"); // Medicamentos essenciais
+                codigos.Add("MED002"); // Medicamentos genéricos
+            }
+            
+            if (ncmInicio.StartsWith("2203") || ncmInicio.StartsWith("2204") || ncmInicio.StartsWith("2205"))
+            {
+                codigos.Add("BEB001"); // Bebidas alcoólicas
+            }
+            
+            return codigos;
+        }
+
+        public bool ValidarOperacaoMonofasica(string ncm, string uf, int codigoMunicipio)
+        {
+            // Implementar validação de operação monofásica
+            var ncmInicio = ncm.Substring(0, 4);
+            
+            // Produtos que podem ter operação monofásica
+            return ncmInicio.StartsWith("2710") || ncmInicio.StartsWith("2711") || 
+                   ncmInicio.StartsWith("2712") || ncmInicio.StartsWith("2203") || 
+                   ncmInicio.StartsWith("2204") || ncmInicio.StartsWith("2205");
+        }
+
+        public bool ValidarCreditoPresumido(string ncm, string uf, int codigoMunicipio)
+        {
+            // Implementar validação de crédito presumido
+            var ncmInicio = ncm.Substring(0, 4);
+            
+            // Produtos que podem ter crédito presumido
+            return ncmInicio.StartsWith("3004") || ncmInicio.StartsWith("3005") || 
+                   ncmInicio.StartsWith("3006") || ncmInicio.StartsWith("2203") || 
+                   ncmInicio.StartsWith("2204") || ncmInicio.StartsWith("2205");
+        }
+
+        #endregion
     }
 }

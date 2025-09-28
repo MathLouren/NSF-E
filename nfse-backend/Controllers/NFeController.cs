@@ -529,6 +529,27 @@ namespace nfse_backend.Controllers
             }
         }
 
+        private int SafeGetInt32(JsonElement element, int defaultValue = 0)
+        {
+            try
+            {
+                if (element.ValueKind == JsonValueKind.Number)
+                {
+                    return element.GetInt32();
+                }
+                else if (element.ValueKind == JsonValueKind.String)
+                {
+                    if (int.TryParse(element.GetString(), out var result))
+                        return result;
+                }
+                return defaultValue;
+            }
+            catch
+            {
+                return defaultValue;
+            }
+        }
+
         private string TratarCaracteresEspeciais(string texto)
         {
             if (string.IsNullOrEmpty(texto))
@@ -590,12 +611,12 @@ namespace nfse_backend.Controllers
                 {
                     nfe.Ide = new IdentificacaoNFe
                     {
-                        cUF = ideElement.TryGetProperty("cUF", out var cUF) ? (cUF.ValueKind == JsonValueKind.Number ? cUF.GetInt32() : (int.TryParse(cUF.GetString(), out var cUFVal) ? cUFVal : 33)) : 33,
+                        cUF = ideElement.TryGetProperty("cUF", out var cUF) ? SafeGetInt32(cUF, 33) : 33,
                         cNF = ideElement.TryGetProperty("cNF", out var cNF) ? cNF.GetString() ?? "00000001" : "00000001",
                         natOp = TratarCaracteresEspeciais(ideElement.TryGetProperty("natOp", out var natOp) ? natOp.GetString() ?? "VENDA" : "VENDA"),
-                        mod = ideElement.TryGetProperty("mod", out var mod) ? (mod.ValueKind == JsonValueKind.Number ? mod.GetInt32() : (int.TryParse(mod.GetString(), out var modVal) ? modVal : 55)) : 55,
-                        serie = ideElement.TryGetProperty("serie", out var serie) ? (serie.ValueKind == JsonValueKind.Number ? serie.GetInt32() : (int.TryParse(serie.GetString(), out var serieVal) ? serieVal : 1)) : 1,
-                        nNF = ideElement.TryGetProperty("nNF", out var nNF) ? (nNF.ValueKind == JsonValueKind.Number ? nNF.GetInt32() : (int.TryParse(nNF.GetString(), out var nNFVal) ? nNFVal : 1)) : 1,
+                        mod = ideElement.TryGetProperty("mod", out var mod) ? SafeGetInt32(mod, 55) : 55,
+                        serie = ideElement.TryGetProperty("serie", out var serie) ? SafeGetInt32(serie, 1) : 1,
+                        nNF = ideElement.TryGetProperty("nNF", out var nNF) ? SafeGetInt32(nNF, 1) : 1,
                         dhEmi = ideElement.TryGetProperty("dhEmi", out var dhEmi) ? DateTime.Parse(dhEmi.GetString() ?? DateTime.Now.ToString()) : DateTime.Now,
                         tpNF = ideElement.TryGetProperty("tpNF", out var tpNF) ? (tpNF.ValueKind == JsonValueKind.Number ? tpNF.GetInt32() : (int.TryParse(tpNF.GetString(), out var tpNFVal) ? tpNFVal : 1)) : 1,
                         idDest = ideElement.TryGetProperty("idDest", out var idDest) ? (idDest.ValueKind == JsonValueKind.Number ? idDest.GetInt32() : (int.TryParse(idDest.GetString(), out var idDestVal) ? idDestVal : 1)) : 1,
@@ -633,7 +654,7 @@ namespace nfse_backend.Controllers
                             xLgr = TratarCaracteresEspeciais(enderEmit.TryGetProperty("xLgr", out var xLgr) ? xLgr.GetString() ?? "" : ""),
                             nro = TratarCaracteresEspeciais(enderEmit.TryGetProperty("nro", out var nro) ? nro.GetString() ?? "" : ""),
                             xBairro = TratarCaracteresEspeciais(enderEmit.TryGetProperty("xBairro", out var xBairro) ? xBairro.GetString() ?? "" : ""),
-                            cMun = enderEmit.TryGetProperty("cMun", out var cMun) ? (cMun.ValueKind == JsonValueKind.Number ? cMun.GetInt32() : (int.TryParse(cMun.GetString(), out var cMunVal) ? cMunVal : 0)) : 0,
+                            cMun = enderEmit.TryGetProperty("cMun", out var cMun) ? SafeGetInt32(cMun, 0) : 0,
                             xMun = TratarCaracteresEspeciais(enderEmit.TryGetProperty("xMun", out var xMun) ? xMun.GetString() ?? "" : ""),
                             UF = enderEmit.TryGetProperty("UF", out var uf) ? uf.GetString() ?? "" : "",
                             CEP = enderEmit.TryGetProperty("CEP", out var cep) ? cep.GetString() ?? "" : "",

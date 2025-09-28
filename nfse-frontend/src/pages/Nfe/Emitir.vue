@@ -140,13 +140,11 @@
           <h2 class="text-lg font-semibold text-gray-900 mb-4">Dados do Emitente</h2>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">CNPJ</label>
-              <input 
+              <CnpjInput 
+                label="CNPJ" 
                 v-model="nfeData.emit.CNPJ" 
-                type="text" 
-                class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="00000000000000"
-                required
+                @cnpj-consulted="preencherDadosEmitente"
+                placeholder="00.000.000/0000-00"
               />
             </div>
             <div>
@@ -321,13 +319,11 @@
           <h2 class="text-lg font-semibold text-gray-900 mb-4">Dados do Destinatário</h2>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">CNPJ/CPF</label>
-              <input 
+              <CnpjInput 
+                label="CNPJ/CPF" 
                 v-model="nfeData.dest.CNPJ" 
-                type="text" 
-                class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="00000000000000"
-                required
+                @cnpj-consulted="preencherDadosDestinatario"
+                placeholder="00.000.000/0000-00"
               />
             </div>
             <div>
@@ -778,12 +774,26 @@
                 <p><strong>Data de Autorização:</strong> {{ formatarData(resultado.dataAutorizacao) }}</p>
               </div>
               <div class="mt-4">
-                <button 
-                  @click="gerarDANFE"
-                  class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500"
-                >
-                  Gerar DANFE
-                </button>
+                <!-- Campos Fiscais 2026 (opcional) -->
+                <div class="mb-4">
+                  <Nfe2026FiscalFields v-model="nfe2026State" />
+                </div>
+
+                <!-- Seletor de Versão da DANFE -->
+                <DanfeVersionSelector 
+                  :nfe-data="nfePayloadMerged"
+                  @danfe-gerada="onDanfeGerada"
+                />
+                
+                <!-- Botão tradicional (mantido para compatibilidade) -->
+                <div class="mt-4 pt-4 border-t border-gray-200">
+                  <button 
+                    @click="gerarDANFE"
+                    class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    Gerar DANFE Tradicional
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -817,8 +827,11 @@
 </template>
 
 <script setup>
-import { reactive, ref, watch } from 'vue'
+import { reactive, ref, watch, computed } from 'vue'
 import api from '@/services/api'
+import CnpjInput from '@/components/CnpjInput.vue'
+import DanfeVersionSelector from '@/components/DanfeVersionSelector.vue'
+import Nfe2026FiscalFields from '@/components/Nfe2026FiscalFields.vue'
 
 const loading = ref(false)
 const resultado = ref(null)
@@ -1100,6 +1113,61 @@ const formatarData = (data) => {
 watch(() => nfeData.det, () => {
   calcularTotais()
 }, { deep: true })
+
+// Função para preencher dados do emitente após consulta do CNPJ
+const preencherDadosEmitente = (dadosEmpresa) => {
+  nfeData.emit.xNome = dadosEmpresa.razaoSocial || ''
+  nfeData.emit.xFant = dadosEmpresa.nomeFantasia || ''
+  nfeData.emit.enderEmit.xLgr = dadosEmpresa.logradouro || ''
+  nfeData.emit.enderEmit.nro = dadosEmpresa.numero || ''
+  nfeData.emit.enderEmit.xBairro = dadosEmpresa.bairro || ''
+  nfeData.emit.enderEmit.xMun = dadosEmpresa.municipio || ''
+  nfeData.emit.enderEmit.UF = dadosEmpresa.uf || ''
+  nfeData.emit.enderEmit.CEP = dadosEmpresa.cep || ''
+  nfeData.emit.enderEmit.cMun = dadosEmpresa.codigoMunicipio || ''
+  nfeData.emit.CNAE = dadosEmpresa.cnaeFiscal || ''
+}
+
+// Função para preencher dados do destinatário após consulta do CNPJ
+const preencherDadosDestinatario = (dadosEmpresa) => {
+  nfeData.dest.xNome = dadosEmpresa.razaoSocial || ''
+  nfeData.dest.enderDest.xLgr = dadosEmpresa.logradouro || ''
+  nfeData.dest.enderDest.nro = dadosEmpresa.numero || ''
+  nfeData.dest.enderDest.xBairro = dadosEmpresa.bairro || ''
+  nfeData.dest.enderDest.xMun = dadosEmpresa.municipio || ''
+  nfeData.dest.enderDest.UF = dadosEmpresa.uf || ''
+  nfeData.dest.enderDest.CEP = dadosEmpresa.cep || ''
+  nfeData.dest.enderDest.cMun = dadosEmpresa.codigoMunicipio || ''
+  nfeData.dest.email = dadosEmpresa.email || ''
+}
+
+// Estado reativo para campos 2026 editáveis na UI
+const nfe2026State = reactive({
+  VersaoLayout: "2026.001",
+  GruposIBS: [],
+  GruposCBS: [],
+  GruposIS: [],
+  TotaisIBS: { vBCIBS: 0, vIBS: 0, vIBSST: 0, vFCPIBS: 0, vIBSDevolvido: 0, vIBSRetido: 0 },
+  TotaisCBS: { vBCCBS: 0, vCBS: 0, vCBSST: 0, vFCPCBS: 0, vCBSDevolvido: 0, vCBSRetido: 0 },
+  TotaisIS: { vBCIS: 0, vIS: 0, vISST: 0, vFCPIS: 0, vISDevolvido: 0, vISRetido: 0 },
+  TotaisPorUF: [],
+  TotaisPorMunicipio: [],
+  Rastreabilidade: [],
+  Referencias: [],
+  EventosFiscais: []
+})
+
+// Merge dos dados clássicos com os campos 2026 para envio
+const nfePayloadMerged = computed(() => ({
+  ...nfeData,
+  ...nfe2026State
+}))
+
+// Método para lidar com DANFE gerada pelo seletor de versão
+const onDanfeGerada = (resultado) => {
+  console.log('DANFE(s) gerada(s):', resultado)
+  // Aqui você pode adicionar lógica adicional se necessário
+}
 
 // Calcular totais na inicialização
 calcularTotais()

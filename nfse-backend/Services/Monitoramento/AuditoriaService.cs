@@ -47,6 +47,11 @@ namespace nfse_backend.Services.Monitoramento
                 MascararCNPJ(cnpjEmpresa), tipoCertificado, sucesso, detalhes);
         }
 
+        public void RegistrarAuditoria(string operacao, string detalhes, string usuario = "Sistema")
+        {
+            _logger.LogInformation("AUDITORIA: {Operacao} | {Usuario} | {Detalhes}", operacao, usuario, detalhes);
+        }
+
         private string MascararCNPJ(string cnpj)
         {
             if (string.IsNullOrEmpty(cnpj) || cnpj.Length != 14)

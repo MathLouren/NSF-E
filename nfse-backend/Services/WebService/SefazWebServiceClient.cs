@@ -298,6 +298,55 @@ namespace nfse_backend.Services.WebService
 </soap:Envelope>";
         }
 
+        public async Task<string> EnviarEventoNFe(string xmlEvento, string uf, bool homologacao = true)
+        {
+            return await EnviarEvento(xmlEvento, uf, homologacao);
+        }
+
+        public async Task<string> ConsultarProtocoloNFe(string chaveAcesso, string uf, bool homologacao = true)
+        {
+            return await ConsultarProtocolo(chaveAcesso, uf, homologacao);
+        }
+
+        public async Task<string> ConsultarDistribuicaoDFe(string cnpj, string uf, string ultimoNSU = "0", bool homologacao = true)
+        {
+            var ambiente = homologacao ? AmbienteNFe.Homologacao : AmbienteNFe.Producao;
+            var urls = _configuracaoService.ObterUrlsWebService(uf, ambiente);
+            var urlDistribuicao = urls.UrlNfeDistribuicaoDFe;
+
+            return await ExecutarComRetry(async () =>
+            {
+                var soapEnvelope = CriarSoapEnvelopeDistribuicaoDFe(cnpj, ultimoNSU, uf, homologacao);
+                return await EnviarSoap(urlDistribuicao, soapEnvelope, "http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe/nfeDistDFeInteresse");
+            }, "ConsultarDistribuicaoDFe");
+        }
+
+        private string CriarSoapEnvelopeDistribuicaoDFe(string cnpj, string ultimoNSU, string uf, bool homologacao)
+        {
+            var ambiente = homologacao ? 2 : 1;
+            var cUF = ObterCodigoUF(uf);
+            
+            var xmlDistribuicao = $@"<?xml version=""1.0"" encoding=""UTF-8""?>
+<distDFeInt xmlns=""http://www.portalfiscal.inf.br/nfe"" versao=""1.01"">
+    <tpAmb>{ambiente}</tpAmb>
+    <cUFAutor>{cUF}</cUFAutor>
+    <CNPJ>{cnpj}</CNPJ>
+    <distNSU>
+        <ultNSU>{ultimoNSU}</ultNSU>
+    </distNSU>
+</distDFeInt>";
+
+            return $@"<?xml version=""1.0"" encoding=""UTF-8""?>
+<soap:Envelope xmlns:soap=""http://www.w3.org/2003/05/soap-envelope"" xmlns:nfe=""http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe"">
+    <soap:Header/>
+    <soap:Body>
+        <nfe:nfeDadosMsg>
+            <![CDATA[{xmlDistribuicao}]]>
+        </nfe:nfeDadosMsg>
+    </soap:Body>
+</soap:Envelope>";
+        }
+
         private int ObterCodigoUF(string uf)
         {
             var codigosUF = new Dictionary<string, int>

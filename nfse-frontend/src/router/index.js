@@ -5,6 +5,7 @@ import Lista from "@/pages/Nfse/Lista.vue"
 import EmitirNFe from "@/pages/Nfe/Emitir.vue"
 import ListaNFe from "@/pages/Nfe/Lista.vue"
 import ConfiguracaoNFe from "@/pages/Nfe/Configuracao.vue"
+import DanfeVersao from "@/pages/Nfe/DanfeVersao.vue"
 import Detalhe from "@/pages/Nfse/Detalhe.vue"
 import Configuracoes from "@/pages/Configuracoes.vue"
 import Login from "@/pages/Login.vue"
@@ -24,6 +25,7 @@ const routes = [
   { path: "/nfe/emitir", component: EmitirNFe },
   { path: "/nfe/lista", component: ListaNFe },
   { path: "/nfe/configuracao", component: ConfiguracaoNFe },
+  { path: "/nfe/danfe-versao", component: DanfeVersao },
   { path: "/nfse/:id", component: Detalhe },
   { path: "/configuracoes", component: Configuracoes },
   { path: "/products/new", component: NewProduct },

@@ -233,6 +233,11 @@ namespace nfse_backend.Services.Monitoramento
             return true;
         }
 
+        public void RegistrarEvento(string tipoEvento, string descricao, string detalhes = "")
+        {
+            _logger.LogInformation("EVENTO: {TipoEvento} | {Descricao} | {Detalhes}", tipoEvento, descricao, detalhes);
+        }
+
         public override void Dispose()
         {
             _timerVerificacao?.Dispose();
