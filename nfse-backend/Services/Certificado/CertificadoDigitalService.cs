@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Security.Cryptography.X509Certificates;
 using System.Security.Cryptography.Xml;
 using System.Xml;
@@ -50,26 +51,190 @@ namespace nfse_backend.Services.Certificado
             }
         }
 
-        public void CarregarCertificadoA3()
+        public void CarregarCertificadoA3(string? serialNumber = null, string? thumbprint = null)
         {
             try
             {
-                using var store = new X509Store(StoreName.My, StoreLocation.CurrentUser);
-                store.Open(OpenFlags.ReadOnly | OpenFlags.OpenExistingOnly);
+                Console.WriteLine("Iniciando busca por certificado A3/Token/HSM");
 
-                var collection = store.Certificates;
-                var fcollection = collection.Find(X509FindType.FindByTimeValid, DateTime.Now, false);
-                // Seleção automática: pega o primeiro válido (para ambientes sem UI)
-                if (fcollection.Count == 0)
-                    throw new Exception("Nenhum certificado A3 válido encontrado no repositório do usuário.");
+                X509Store? store = null;
+                try
+                {
+                    // Tentar Personal primeiro (mais comum)
+                    store = new X509Store(StoreName.My, StoreLocation.CurrentUser);
+                    store.Open(OpenFlags.ReadOnly);
+                    
+                    var certificado = BuscarCertificadoNaStore(store, serialNumber, thumbprint);
+                    if (certificado != null)
+                    {
+                        _certificado = certificado;
+                        ValidarCertificado();
+                        Console.WriteLine($"Certificado A3 encontrado no CurrentUser. Válido até: {_certificado.NotAfter}");
+                        return;
+                    }
+                }
+                finally
+                {
+                    store?.Close();
+                }
 
-                _certificado = fcollection[0];
-                
-                ValidarCertificado();
+                // Tentar LocalMachine se não encontrou no CurrentUser
+                try
+                {
+                    store = new X509Store(StoreName.My, StoreLocation.LocalMachine);
+                    store.Open(OpenFlags.ReadOnly);
+                    
+                    var certificado = BuscarCertificadoNaStore(store, serialNumber, thumbprint);
+                    if (certificado != null)
+                    {
+                        _certificado = certificado;
+                        ValidarCertificado();
+                        Console.WriteLine($"Certificado A3 encontrado no LocalMachine. Válido até: {_certificado.NotAfter}");
+                        return;
+                    }
+                }
+                finally
+                {
+                    store?.Close();
+                }
+
+                // Se não encontrou, listar certificados disponíveis
+                ListarCertificadosDisponiveis();
+                throw new Exception("Certificado A3/Token não encontrado. Verifique se o token está conectado e o driver instalado.");
             }
             catch (Exception ex)
             {
                 throw new Exception($"Erro ao carregar certificado A3: {ex.Message}", ex);
+            }
+        }
+
+        private X509Certificate2? BuscarCertificadoNaStore(X509Store store, string? serialNumber, string? thumbprint)
+        {
+            foreach (X509Certificate2 cert in store.Certificates)
+            {
+                try
+                {
+                    // Verificar se é certificado ICP-Brasil válido
+                    if (!cert.HasPrivateKey)
+                        continue;
+
+                    // Verificar se não está expirado
+                    if (DateTime.Now < cert.NotBefore || DateTime.Now > cert.NotAfter)
+                        continue;
+
+                    // Verificar se é certificado de pessoa jurídica (ICP-Brasil)
+                    var subject = cert.Subject;
+                    if (!subject.Contains("ICP-Brasil") && !IsICPBrasilCertificate(cert))
+                        continue;
+
+                    // Se foi especificado serial number ou thumbprint, verificar
+                    if (!string.IsNullOrEmpty(serialNumber) && cert.SerialNumber != serialNumber)
+                        continue;
+
+                    if (!string.IsNullOrEmpty(thumbprint) && cert.Thumbprint != thumbprint)
+                        continue;
+
+                    Console.WriteLine($"Certificado encontrado: {cert.Subject}");
+                    return cert;
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Erro ao verificar certificado: {cert.Subject} - {ex.Message}");
+                    continue;
+                }
+            }
+
+            return null;
+        }
+
+        private bool IsICPBrasilCertificate(X509Certificate2 certificate)
+        {
+            try
+            {
+                // Verificar pela extensão de políticas de certificado
+                foreach (X509Extension extension in certificate.Extensions)
+                {
+                    if (extension.Oid?.Value == "2.5.29.32") // Certificate Policies
+                    {
+                        var rawData = extension.RawData;
+                        var policyString = System.Text.Encoding.ASCII.GetString(rawData);
+                        
+                        // OIDs comuns do ICP-Brasil
+                        if (policyString.Contains("2.16.76.1.2.1") ||  // A1 PJ
+                            policyString.Contains("2.16.76.1.2.2") ||  // A3 PJ
+                            policyString.Contains("2.16.76.1.3.1") ||  // A1 PF
+                            policyString.Contains("2.16.76.1.3.2"))    // A3 PF
+                        {
+                            return true;
+                        }
+                    }
+                }
+
+                // Verificar pelo issuer
+                var issuer = certificate.Issuer;
+                return issuer.Contains("ICP-Brasil") || 
+                       issuer.Contains("Autoridade Certificadora") ||
+                       issuer.Contains("AC ") ||
+                       issuer.Contains("Certisign") ||
+                       issuer.Contains("Serasa") ||
+                       issuer.Contains("Valid");
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        public void ListarCertificadosDisponiveis()
+        {
+            try
+            {
+                Console.WriteLine("=== CERTIFICADOS DISPONÍVEIS ===");
+                
+                ListarCertificadosStore(StoreName.My, StoreLocation.CurrentUser, "CurrentUser\\Personal");
+                ListarCertificadosStore(StoreName.My, StoreLocation.LocalMachine, "LocalMachine\\Personal");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Erro ao listar certificados: {ex.Message}");
+            }
+        }
+
+        private void ListarCertificadosStore(StoreName storeName, StoreLocation storeLocation, string storeDescription)
+        {
+            X509Store? store = null;
+            try
+            {
+                store = new X509Store(storeName, storeLocation);
+                store.Open(OpenFlags.ReadOnly);
+                
+                Console.WriteLine($"\n--- {storeDescription} ---");
+                
+                foreach (X509Certificate2 cert in store.Certificates)
+                {
+                    try
+                    {
+                        var temChavePrivada = cert.HasPrivateKey ? "SIM" : "NÃO";
+                        var valido = (DateTime.Now >= cert.NotBefore && DateTime.Now <= cert.NotAfter) ? "VÁLIDO" : "EXPIRADO";
+                        var icpBrasil = IsICPBrasilCertificate(cert) ? "ICP-Brasil" : "Outro";
+                        
+                        Console.WriteLine($"  Subject: {cert.Subject}");
+                        Console.WriteLine($"  Serial: {cert.SerialNumber}");
+                        Console.WriteLine($"  Thumbprint: {cert.Thumbprint}");
+                        Console.WriteLine($"  Válido: {cert.NotBefore:dd/MM/yyyy} até {cert.NotAfter:dd/MM/yyyy} ({valido})");
+                        Console.WriteLine($"  Chave Privada: {temChavePrivada}");
+                        Console.WriteLine($"  Tipo: {icpBrasil}");
+                        Console.WriteLine($"  ---");
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"Erro ao listar certificado: {cert.Subject} - {ex.Message}");
+                    }
+                }
+            }
+            finally
+            {
+                store?.Close();
             }
         }
 
@@ -271,6 +436,54 @@ namespace nfse_backend.Services.Certificado
             }
 
             return sb.ToString();
+        }
+
+        public Dictionary<string, object> ObterInformacoesCertificado()
+        {
+            var informacoes = new Dictionary<string, object>();
+            
+            if (_certificado == null)
+            {
+                informacoes["loaded"] = false;
+                informacoes["error"] = "Certificado não carregado";
+                return informacoes;
+            }
+
+            try
+            {
+                informacoes["loaded"] = true;
+                informacoes["subject"] = _certificado.Subject;
+                informacoes["issuer"] = _certificado.Issuer;
+                informacoes["serialNumber"] = _certificado.SerialNumber;
+                informacoes["thumbprint"] = _certificado.Thumbprint;
+                informacoes["notBefore"] = _certificado.NotBefore;
+                informacoes["notAfter"] = _certificado.NotAfter;
+                informacoes["hasPrivateKey"] = _certificado.HasPrivateKey;
+
+                // Calcular dias até expirar
+                var diasParaExpirar = (_certificado.NotAfter - DateTime.Now).Days;
+                informacoes["daysUntilExpiry"] = diasParaExpirar;
+                informacoes["isExpired"] = diasParaExpirar <= 0;
+                informacoes["isExpiringSoon"] = diasParaExpirar <= 30;
+
+                // Extrair CNPJ
+                string? cnpj = ExtrairCNPJCertificado();
+                if (!string.IsNullOrEmpty(cnpj))
+                {
+                    informacoes["cnpj"] = cnpj;
+                }
+
+                // Verificar se é ICP-Brasil
+                informacoes["isICPBrasil"] = IsICPBrasilCertificate(_certificado);
+                
+                return informacoes;
+            }
+            catch (Exception ex)
+            {
+                informacoes["loaded"] = false;
+                informacoes["error"] = ex.Message;
+                return informacoes;
+            }
         }
 
         private string? ExtrairCNPJCertificado()

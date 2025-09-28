@@ -1,0 +1,153 @@
+---
+description: "Complete rules for the National NFS-e 2026 issuance system (Services and Products)"
+alwaysApply: false
+---
+# NFSE MDC – Complete System Rules (Services + Products)
+
+## 1. System Objective
+The system must allow:
+- Issuance of NFS-e for **services and products** following the national 2026 layout.
+- Management of providers, recipients, services, products, and taxes.
+- Control of sequential invoice numbers per provider.
+- Consultation and detailed view of issued NFS-e.
+- Integration with digital certificates and SEFAZ WebService.
+
+---
+
+## 2. Users and Roles
+### 2.1 Administrator
+- Create, edit, and delete NFS-e.
+- Manage products and services catalog.
+- Configure company and certificates.
+- Manage users and audit logs.
+
+### 2.2 Operator
+- Create NFS-e.
+- Manage products/services used in invoices.
+- View issued invoices and details.
+
+### 2.3 Auditor
+- Read-only access.
+- Access reports, logs, and invoice history.
+
+---
+
+## 3. Authentication and Security
+- Login via username and password.
+- Passwords stored securely (bcrypt/Argon2).
+- JWT authentication with 8-hour expiration.
+- HTTPS required in production.
+- Full audit logs for all actions.
+
+---
+
+## 4. NFS-e Issuance
+### 4.1 Required Fields for Services
+**Provider**
+- CNPJ with validation
+- Legal name
+
+**Recipient**
+- CPF/CNPJ with validation
+- Name / Legal name
+
+**Service**
+- Service code (CNAE/national table)
+- Description
+- Value ≥ 0
+- Quantity (default 1 if not informed)
+
+**Taxes**
+- IBS mandatory (0–100%)
+- ISS optional, auto-calculated
+- Retentions (PIS, COFINS, CSLL, IR) optional
+
+### 4.2 Required Fields for Products
+**Product**
+- SKU or internal code
+- Name / Description
+- Quantity > 0
+- Unit price > 0
+- Category (optional)
+- Stock validation (if integrated with inventory)
+
+**Taxes**
+- IBS / ICMS / PIS / COFINS / ISS (as applicable)
+- Automatic calculation based on product category and municipality rules
+
+### 4.3 Business Rules
+- Sequential invoice number unique per provider.
+- Issue date ≤ current date.
+- Validate required fields before creating NFS-e.
+- XML/PDF must follow **national 2026 layout**.
+- PDF/DANFE: max 1 line in “Received From” field.
+- Product invoices must check stock if stock management is enabled.
+
+---
+
+## 5. Listing and Details
+- Paginated list: 10, 25, 50 items.
+- Filters: invoice number, provider, recipient, date, product/service.
+- Invoice details show all fields and allow XML/PDF download.
+- Products and services should be displayed separately in the invoice details.
+
+---
+
+## 6. System Settings
+- Company info: CNPJ, legal name, address.
+- Digital certificate configuration (A1/A3/cloud).
+- Default tax rates configuration for services and products.
+- Integration with SEFAZ WebService.
+- Product/service catalog management.
+
+---
+
+## 7. Tax and Fiscal Rules
+- Validate CNPJs/CPFs.
+- Service/product values must be > 0.
+- IBS rate: 0–100%
+- ICMS, PIS, COFINS, CSLL, IR applied according to state/municipality rules.
+- Sequential invoice numbering per provider.
+- Required fields must be filled.
+- Automatic tax calculations for products based on category and location.
+
+---
+
+## 8. APIs and Endpoints
+- `POST /api/auth/login` → login, returns JWT.
+- `GET /api/nfse` → list invoices.
+- `POST /api/nfse` → issue invoice (services or products).
+- `GET /api/nfse/{id}` → invoice details.
+- `GET /api/products` → list products.
+- `POST /api/products` → add product.
+- `GET /api/services` → list services.
+- `POST /api/services` → add service.
+- `GET /api/configurations` → company data.
+- `POST /api/configurations` → update company.
+
+---
+
+## 9. Frontend
+- Screens: login, dashboard, NFS-e (New, List, Detail), Products, Services, Settings.
+- Reusable components: Sidebar, Navbar, InputField, ProductTable, ServiceTable.
+- Communication via Axios with JWT in headers.
+- Display clear error messages from backend.
+
+---
+
+## 10. Optional Features
+- Download PDF and XML for NFS-e.
+- Export reports (Excel/CSV) with products/services breakdown.
+- Full audit trail (creation, updates, deletions).
+- Advanced filtering: by period, provider, recipient, product, service.
+- Integration with SEFAZ municipal WebService for real-time submission.
+
+---
+
+## 11. Notes
+- Modular architecture: Vue.js frontend + C# .NET 8 backend.
+- Backend layers: Controllers, Services, Repositories, Models, DTOs, Mappings.
+- Backend handles all validations and tax rules.
+- Frontend only interfaces with backend via API.
+- Support both **services-only**, **products-only**, or **mixed invoices**.
+

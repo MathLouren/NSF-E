@@ -1,0 +1,185 @@
+---
+description: Outras Implementacoes necessarias caso ainda nao haja no programa
+globs:
+alwaysApply: true
+---
+
+Ele é a base técnica essencial, mas faltam artefatos práticos, segredos, regras dinâmicas e código executável que o agente precisa para montar, testar e publicar um sistema operacionalmente pronto.
+
+Abaixo expliquei exatamente o que falta e dei um manifesto acionável (estrutura de repositório + arquivos mínimos e trechos) que você pode colar no Cursor/agent para que ele construa o programa por completo.
+
+1) O que falta (resumo)
+
+XSDs e pacotes de liberação oficiais (os arquivos .xsd físicos) no repositório.
+
+Lista completa de endpoints / URLs por UF (homolog/prod) (arquivo de configuração).
+
+Regras tributárias e tabelas por estado/município (alíquotas ICMS, CFOP, regras ST, código de serviço municipal) em formato machine-readable (CSV/JSON).
+
+Chaves/segredos: certificado digital A1 (.pfx/.p12) ou método para A3 (token/HSM) — NÃO incluir o arquivo real no repo público, mas instruções + mecanismo seguro para o agente usar em ambiente de build/homolog.
+
+Exemplos de dados reais (dados de emitente, cliente, itens) para testes.
+
+Mapeamento DTO → XML e regras de cálculo (como arredondamento, ordem dos impostos, cálculos cumulativo/não-cumulativo).
+
+Testes de aceitação/homologação (ex.: casos que provoquem rejeições comuns e autorizações) e scripts que rodem contra endpoints de homologação.
+
+Código: esqueleto completo (gerador XML, validador XSD, assinador XML, cliente SOAP, tratador de retorno, geração DANFE).
+
+CI/CD + Docker: Dockerfile, pipeline (GitHub Actions / GitLab CI) para build/test/deploy.
+
+Documentação operacional: como instalar, provisionar certificados, configurar endpoints, backup, retention.
+
+Legal/compliance: limites de responsabilidade, logs obrigatórios, período de guarda.
+
+Plano de atualização: rotina para aplicar novas Notas Técnicas / XSDs automaticamente.
+
+2) Estrutura mínima de repositório que o agente precisa (copiar/colar no Cursor)
+/nfe-emissor/                       # root
+├─ README.md
+├─ docs/
+│  └─ Documento_Tecnico_NFe_NFSe.pdf   # seu PDF já gerado
+├─ schemas/
+│  └─ nfe/                           # XSDs oficiais (versao 4.00 etc.)
+│     └─ *.xsd
+│  └─ nfse/                          # XSDs NFS-e municipais / ABRASF
+├─ config/
+│  ├─ endpoints.json                 # urls por UF { "SP": { "homolog": "...", "prod": "..." }, ... }
+│  ├─ tax_rules/                     # regras por UF/mun (csv/json)
+│  └─ appsettings.template.json      # placeholders (certPath, certPassword, ambiente)
+├─ src/
+│  ├─ NFe.Emissor.Api/               # projeto .NET (API)
+│  │  ├─ Program.cs
+│  │  ├─ appsettings.json (ignore)
+│  │  ├─ Controllers/NFeController.cs
+│  │  └─ ...
+│  ├─ NFe.Emissor.Core/              # lógica (services, dto, validators)
+│  │  ├─ Services/NFeBuilderService.cs
+│  │  ├─ Services/XmlSigner.cs
+│  │  ├─ Services/SoapClientSefaz.cs
+│  │  └─ Validators/XsdValidator.cs
+│  └─ NFe.Emissor.Infra/             # persistence, logs
+├─ tests/
+│  ├─ Unit/
+│  └─ Integration/                   # testes contra homolog endpoints
+├─ scripts/
+│  ├─ generate_keys_help.md
+│  ├─ upload_cert_secure.sh
+│  └─ run_homolog_tests.sh
+├─ docker/
+│  ├─ Dockerfile
+│  └─ docker-compose.yml
+└─ .gitignore
+
+3) Arquivos de configuração essenciais (conteúdo exemplar)
+
+config/endpoints.json (exemplo mínimo)
+
+{
+  "SP": {
+    "homolog": "https://homologacao.nfe.fazenda.sp.gov.br/nfeAutorizacao4",
+    "prod": "https://nfe.fazenda.sp.gov.br/nfeAutorizacao4"
+  },
+  "BR": {
+    "distribuicaoDFe": "https://www.nfe.fazenda.gov.br/NFeDistribuicaoDFe"
+  }
+}
+
+
+config/appsettings.template.json
+
+{
+  "Ambiente": "HOMOLOG",
+  "Cert": {
+    "Tipo": "A1",
+    "Path": "<seu-certificado.pfx-ou-path-hsm>",
+    "Password": "<senha-secreta-nunca-comitar>"
+  },
+  "EndpointsFile": "config/endpoints.json",
+  "SchemasPath": "schemas/nfe"
+}
+
+4) Trechos de código que o agente deve criar (padrão .NET) — trechos essenciais
+
+XmlSigner.cs (esqueleto)
+
+public class XmlSigner {
+  public XmlDocument Sign(XmlDocument xml, X509Certificate2 cert) {
+    // 1) localizar tag infNFe e atribuir Id
+    // 2) criar SignedXml, Reference (URI="#Id"), EnvelopedSignatureTransform
+    // 3) adicionar KeyInfo com X509Data
+    // 4) ComputeSignature e inserir <Signature> no xml
+  }
+}
+
+
+NFeBuilderService.cs (esqueleto)
+
+public class NFeBuilderService {
+  public XmlDocument BuildNFe(NFeDto dto) {
+    // mapear DTO -> elementos XML seguindo XSD (ordem e campos obrigatórios)
+    // inserir impostos por item (ICMS, IPI, PIS/COFINS)
+    // calcular totais (vProd, vNF, vICMS)
+    // retornar XmlDocument pronto para validação
+  }
+}
+
+
+XsdValidator.cs
+
+public bool Validate(XmlDocument xml, string xsdPath, out IList<string> errors) {
+  // carregar XSD set, validar e coletar mensagens de erro
+}
+
+
+SoapClientSefaz.cs
+
+public class SoapClientSefaz {
+  public async Task<string> SendAutorizacaoAsync(string xmlSigned, string url) {
+    // montar envelope SOAP, colocar CDATA com <enviNFe> assinado
+    // enviar via HttpClient com certificado (mutual TLS quando necessário)
+    // retornar resposta bruta para parsing
+  }
+}
+
+5) Casos de teste mínimos que o agente deve criar e rodar
+
+Emissão NF-e válida (caminho feliz) — deve retornar cStat 100 / protocolo.
+
+Emissão com CFOP/ICMS inválido — validar rejeição conhecida (ex.: 509).
+
+Duplicidade (enviar mesma chave duas vezes) — simular 204.
+
+Cancelamento dentro do prazo — envio de evento de cancelamento e verificação de retorno.
+
+CCe — criação e envio de evento de carta de correção.
+
+Consulta distribuição DFe por NSU (recuperação).
+
+6) Segurança / deployment (instruções que o agente precisa aplicar)
+
+Nunca commitar certificado ou senha no repo. Use secrets do CI (GitHub Secrets / Vault).
+
+Ao usar A3 (cartão/token), documentar como mapear o leitor no container/host.
+
+Logs sensíveis: mascarar CNPJ/CPF em logs públicos.
+
+Backup e retenção: manter XMLs e protocolos por no mínimo 5 anos (configurável).
+
+7) Como tornar isso totalmente autônomo para o Cursor-agent
+
+Para que o agent construa tudo sozinho e finalize (build, testar, publicar), adicione ao repositório:
+
+schemas/ com todos os XSDs oficiais (versão X).
+
+config/endpoints.json com todas UFs (homolog/prod).
+
+config/tax_rules/ com CSV/JSON por UF/mun.
+
+secrets placeholder (um readme explicando onde o agent encontra os secrets no ambiente CI).
+
+task list (arquivo cursor_tasks.yaml) com steps acionáveis (ex.: build, unit tests, run integration tests against homolog endpoints, generate release artifact).
+
+exemplos de payload (tests/fixtures) com várias combinações (simples, ST, importação, exportação).
+
+Se você fornecer todos esses artefatos (XSDs, endpoints, regras fiscais, exemplos de dados e acesso seguro ao certificado em homolog/CI), sim — um agente bem configurado conseguirá gerar o programa completo, compilar, testar em homologação e produzir um release.

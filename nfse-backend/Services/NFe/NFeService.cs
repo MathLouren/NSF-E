@@ -178,7 +178,7 @@ namespace nfse_backend.Services.NotaFiscal
                 // 14. Consultar autorização
                 await Task.Delay(3000); // Aguardar processamento
 
-                var retornoConsulta = await _webServiceClient.ConsultarRetornoAutorizacao(
+                var retornoConsulta = await _webServiceClient.ConsultarRecibo(
                     numeroRecibo,
                     nfe.Emit.EnderEmit.UF,
                     ambiente == AmbienteNFe.Homologacao

@@ -72,7 +72,7 @@ namespace nfse_backend.Services.Xml
             return infNFe;
         }
 
-        private string GenerateNFeId(NFe nfe)
+        private string GenerateNFeId(nfse_backend.Models.NFe.NFe nfe)
         {
             // Formato: NFe + cUF + AAMM + CNPJ + mod + serie + nNF + tpEmis + cNF + cDV
             var chaveAcesso = $"{nfe.Ide.cUF:00}{nfe.Ide.dhEmi:yyMM}{nfe.Emit.CNPJ}{nfe.Ide.mod:00}{nfe.Ide.serie:000}{nfe.Ide.nNF:000000000}{nfe.Ide.tpEmis}{nfe.Ide.cNF}";
@@ -107,7 +107,7 @@ namespace nfse_backend.Services.Xml
                 new XElement(nfe + "mod", ide.mod),
                 new XElement(nfe + "serie", ide.serie),
                 new XElement(nfe + "nNF", ide.nNF),
-                new XElement(nfe + "dhEmi", ide.dhEmi.ToString("yyyy-MM-ddTHH:mm:sszzz"))
+                new XElement(nfe + "dhEmi", ide.dhEmi?.ToString("yyyy-MM-ddTHH:mm:sszzz"))
             );
 
             if (ide.dhSaiEnt.HasValue)

@@ -1,419 +1,308 @@
 using System;
-using System.Net;
+using System.Collections.Generic;
 using System.Net.Http;
-using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
 using System.Xml;
-using System.IO;
-using System.Net.Security;
+using System.Security.Cryptography.X509Certificates;
+using Microsoft.Extensions.Logging;
 using nfse_backend.Services.Certificado;
+using nfse_backend.Services.Configuracao;
+using System.Net.Security;
+using System.Security.Authentication;
+using Polly;
+using Polly.Extensions.Http;
 
 namespace nfse_backend.Services.WebService
 {
     public class SefazWebServiceClient
     {
-        private readonly CertificadoDigitalService _certificadoService;
         private readonly HttpClient _httpClient;
-        private Dictionary<string, Dictionary<string, string>> _urlsWebService = new();
+        private readonly ILogger<SefazWebServiceClient> _logger;
+        private readonly CertificadoDigitalService _certificadoService;
+        private readonly ConfiguracaoNFeService _configuracaoService;
 
-        public SefazWebServiceClient(CertificadoDigitalService certificadoService)
+        public SefazWebServiceClient(
+            HttpClient httpClient,
+            ILogger<SefazWebServiceClient> logger,
+            CertificadoDigitalService certificadoService,
+            ConfiguracaoNFeService configuracaoService)
         {
+            _httpClient = httpClient;
+            _logger = logger;
             _certificadoService = certificadoService;
+            _configuracaoService = configuracaoService;
             
-            var handler = new HttpClientHandler();
-            ConfigurarCertificado(handler);
-            
-            _httpClient = new HttpClient(handler);
-            _httpClient.Timeout = TimeSpan.FromSeconds(100);
-            
-            InicializarUrlsWebService();
+            ConfigurarHttpClient();
         }
 
-        private void ConfigurarCertificado(HttpClientHandler handler)
+        private void ConfigurarHttpClient()
         {
-            try
-            {
-                var certificado = _certificadoService.ObterCertificado();
-                if (certificado != null)
-                {
-                    handler.ClientCertificates.Add(certificado);
-                }
-            }
-            catch (Exception)
-            {
-                // Certificado não carregado ainda - será configurado quando necessário
-            }
-
-            // Configurar validação SSL
-            handler.ServerCertificateCustomValidationCallback = (sender, cert, chain, sslPolicyErrors) => true;
-            
-            // Configurar protocolos de segurança
-            ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12 | SecurityProtocolType.Tls11 | SecurityProtocolType.Tls;
-        }
-
-        private HttpClient ObterHttpClientAtualizado()
-        {
-            var handler = new HttpClientHandler();
-            ConfigurarCertificado(handler);
-            
-            var client = new HttpClient(handler);
-            client.Timeout = TimeSpan.FromSeconds(100);
-            
-            return client;
-        }
-
-        private void InicializarUrlsWebService()
-        {
-            _urlsWebService = new Dictionary<string, Dictionary<string, string>>();
-
-            // 1) Tentativa de carregar de config/endpoints.json
-            try
-            {
-                var endpointsPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "config", "endpoints.json");
-                if (File.Exists(endpointsPath))
-                {
-                    var json = File.ReadAllText(endpointsPath);
-                    var dict = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, Dictionary<string, string>>>(json);
-                    if (dict != null)
-                    {
-                        // Mapear entradas conhecidas para chaves internas
-                        foreach (var kv in dict)
-                        {
-                            if (kv.Key == "BR") continue;
-                            var uf = kv.Key.ToUpper();
-                            if (kv.Value.ContainsKey("homolog"))
-                            {
-                                _urlsWebService[$"{uf}_HOMOLOGACAO"] = new Dictionary<string, string>(kv.Value);
-                            }
-                            if (kv.Value.ContainsKey("prod"))
-                            {
-                                _urlsWebService[$"{uf}_PRODUCAO"] = new Dictionary<string, string>(kv.Value);
-                            }
-                        }
-                    }
-                }
-            }
-            catch { }
-
-            // URLs para SP - Ambiente de Homologação
-            _urlsWebService["SP_HOMOLOGACAO"] = new Dictionary<string, string>
-            {
-                ["NfeAutorizacao"] = "https://homologacao.nfe.fazenda.sp.gov.br/ws/nfeautorizacao4.asmx",
-                ["NfeRetAutorizacao"] = "https://homologacao.nfe.fazenda.sp.gov.br/ws/nferetautorizacao4.asmx",
-                ["NfeConsultaProtocolo"] = "https://homologacao.nfe.fazenda.sp.gov.br/ws/nfeconsultaprotocolo4.asmx",
-                ["NfeStatusServico"] = "https://homologacao.nfe.fazenda.sp.gov.br/ws/nfestatusservico4.asmx",
-                ["NfeInutilizacao"] = "https://homologacao.nfe.fazenda.sp.gov.br/ws/nfeinutilizacao4.asmx",
-                ["RecepcaoEvento"] = "https://homologacao.nfe.fazenda.sp.gov.br/ws/nferecepcaoevento4.asmx"
-            };
-
-            // URLs para SP - Ambiente de Produção
-            _urlsWebService["SP_PRODUCAO"] = new Dictionary<string, string>
-            {
-                ["NfeAutorizacao"] = "https://nfe.fazenda.sp.gov.br/ws/nfeautorizacao4.asmx",
-                ["NfeRetAutorizacao"] = "https://nfe.fazenda.sp.gov.br/ws/nferetautorizacao4.asmx",
-                ["NfeConsultaProtocolo"] = "https://nfe.fazenda.sp.gov.br/ws/nfeconsultaprotocolo4.asmx",
-                ["NfeStatusServico"] = "https://nfe.fazenda.sp.gov.br/ws/nfestatusservico4.asmx",
-                ["NfeInutilizacao"] = "https://nfe.fazenda.sp.gov.br/ws/nfeinutilizacao4.asmx",
-                ["RecepcaoEvento"] = "https://nfe.fazenda.sp.gov.br/ws/nferecepcaoevento4.asmx"
-            };
-
-            // URLs para SVRS (Sefaz Virtual RS) - Homologação
-            _urlsWebService["SVRS_HOMOLOGACAO"] = new Dictionary<string, string>
-            {
-                ["NfeAutorizacao"] = "https://nfe-homologacao.svrs.rs.gov.br/ws/NfeAutorizacao/NFeAutorizacao4.asmx",
-                ["NfeRetAutorizacao"] = "https://nfe-homologacao.svrs.rs.gov.br/ws/NfeRetAutorizacao/NFeRetAutorizacao4.asmx",
-                ["NfeConsultaProtocolo"] = "https://nfe-homologacao.svrs.rs.gov.br/ws/NfeConsulta/NfeConsulta4.asmx",
-                ["NfeStatusServico"] = "https://nfe-homologacao.svrs.rs.gov.br/ws/NfeStatusServico/NfeStatusServico4.asmx",
-                ["NfeInutilizacao"] = "https://nfe-homologacao.svrs.rs.gov.br/ws/nfeinutilizacao/nfeinutilizacao4.asmx",
-                ["RecepcaoEvento"] = "https://nfe-homologacao.svrs.rs.gov.br/ws/recepcaoevento/recepcaoevento4.asmx"
-            };
-
-            // URLs para RJ (utiliza SVRS) - Homologação
-            _urlsWebService["RJ_HOMOLOGACAO"] = new Dictionary<string, string>
-            {
-                ["NfeAutorizacao"] = "https://nfe-homologacao.svrs.rs.gov.br/ws/NfeAutorizacao/NFeAutorizacao4.asmx",
-                ["NfeRetAutorizacao"] = "https://nfe-homologacao.svrs.rs.gov.br/ws/NfeRetAutorizacao/NFeRetAutorizacao4.asmx",
-                ["NfeConsultaProtocolo"] = "https://nfe-homologacao.svrs.rs.gov.br/ws/NfeConsulta/NfeConsulta4.asmx",
-                ["NfeStatusServico"] = "https://nfe-homologacao.svrs.rs.gov.br/ws/NfeStatusServico/NfeStatusServico4.asmx",
-                ["NfeInutilizacao"] = "https://nfe-homologacao.svrs.rs.gov.br/ws/nfeinutilizacao/nfeinutilizacao4.asmx",
-                ["RecepcaoEvento"] = "https://nfe-homologacao.svrs.rs.gov.br/ws/recepcaoevento/recepcaoevento4.asmx"
-            };
-
-            // URLs para SVRS (Sefaz Virtual RS) - Produção
-            _urlsWebService["SVRS_PRODUCAO"] = new Dictionary<string, string>
-            {
-                ["NfeAutorizacao"] = "https://nfe.svrs.rs.gov.br/ws/NfeAutorizacao/NFeAutorizacao4.asmx",
-                ["NfeRetAutorizacao"] = "https://nfe.svrs.rs.gov.br/ws/NfeRetAutorizacao/NFeRetAutorizacao4.asmx",
-                ["NfeConsultaProtocolo"] = "https://nfe.svrs.rs.gov.br/ws/NfeConsulta/NFeConsulta4.asmx",
-                ["NfeStatusServico"] = "https://nfe.svrs.rs.gov.br/ws/NfeStatusServico/NfeStatusServico4.asmx",
-                ["NfeInutilizacao"] = "https://nfe.svrs.rs.gov.br/ws/nfeinutilizacao/nfeinutilizacao4.asmx",
-                ["RecepcaoEvento"] = "https://nfe.svrs.rs.gov.br/ws/recepcaoevento/recepcaoevento4.asmx"
-            };
-
-            // URLs para RJ (utiliza SVRS) - Produção
-            _urlsWebService["RJ_PRODUCAO"] = new Dictionary<string, string>
-            {
-                ["NfeAutorizacao"] = "https://nfe.svrs.rs.gov.br/ws/NfeAutorizacao/NFeAutorizacao4.asmx",
-                ["NfeRetAutorizacao"] = "https://nfe.svrs.rs.gov.br/ws/NfeRetAutorizacao/NFeRetAutorizacao4.asmx",
-                ["NfeConsultaProtocolo"] = "https://nfe.svrs.rs.gov.br/ws/NfeConsulta/NFeConsulta4.asmx",
-                ["NfeStatusServico"] = "https://nfe.svrs.rs.gov.br/ws/NfeStatusServico/NfeStatusServico4.asmx",
-                ["NfeInutilizacao"] = "https://nfe.svrs.rs.gov.br/ws/nfeinutilizacao/nfeinutilizacao4.asmx",
-                ["RecepcaoEvento"] = "https://nfe.svrs.rs.gov.br/ws/recepcaoevento/recepcaoevento4.asmx"
-            };
-
-            // Adicionar outras UFs conforme necessário...
+            _httpClient.Timeout = TimeSpan.FromMinutes(5); // Timeout de 5 minutos
+            _httpClient.DefaultRequestHeaders.Add("User-Agent", "NFe-Emissor/1.0");
+            _httpClient.DefaultRequestHeaders.Add("Accept", "text/xml, application/soap+xml");
         }
 
         public async Task<string> EnviarLoteNFe(string xmlLote, string uf, bool homologacao = true)
         {
-            try
+            var ambiente = homologacao ? AmbienteNFe.Homologacao : AmbienteNFe.Producao;
+            var urls = _configuracaoService.ObterUrlsWebService(uf, ambiente);
+            var urlAutorizacao = urls.UrlNfeAutorizacao;
+
+            return await ExecutarComRetry(async () =>
             {
-                string ambiente = homologacao ? "HOMOLOGACAO" : "PRODUCAO";
-                string chaveUrl = $"{uf}_{ambiente}";
-                
-                if (!_urlsWebService.ContainsKey(chaveUrl))
-                {
-                    chaveUrl = $"SVRS_{ambiente}"; // Fallback para SVRS
-                }
-
-                string url = _urlsWebService[chaveUrl]["NfeAutorizacao"];
-                string soapAction = "http://www.portalfiscal.inf.br/nfe/wsdl/NFeAutorizacao4/nfeAutorizacaoLote";
-
-                string soapEnvelope = CriarEnvelopeSoap(xmlLote, "nfeDadosMsg", "http://www.portalfiscal.inf.br/nfe/wsdl/NFeAutorizacao4");
-
-                return await EnviarRequisicaoSoap(url, soapAction, soapEnvelope);
-            }
-            catch (Exception ex)
-            {
-                throw new Exception($"Erro ao enviar lote NF-e: {ex.Message}", ex);
-            }
+                var soapEnvelope = CriarSoapEnvelopeAutorizacao(xmlLote);
+                return await EnviarSoap(urlAutorizacao, soapEnvelope, "http://www.portalfiscal.inf.br/nfe/wsdl/NFeAutorizacao4/nfeAutorizacaoLote");
+            }, "EnviarLoteNFe");
         }
 
-        public async Task<string> ConsultarRetornoAutorizacao(string numeroRecibo, string uf, bool homologacao = true)
+        public async Task<string> ConsultarRecibo(string numeroRecibo, string uf, bool homologacao = true)
         {
-            try
+            var ambiente = homologacao ? AmbienteNFe.Homologacao : AmbienteNFe.Producao;
+            var urls = _configuracaoService.ObterUrlsWebService(uf, ambiente);
+            var urlRetAutorizacao = urls.UrlNfeRetAutorizacao;
+
+            return await ExecutarComRetry(async () =>
             {
-                string ambiente = homologacao ? "HOMOLOGACAO" : "PRODUCAO";
-                string chaveUrl = $"{uf}_{ambiente}";
-                
-                if (!_urlsWebService.ContainsKey(chaveUrl))
-                {
-                    chaveUrl = $"SVRS_{ambiente}";
-                }
-
-                string url = _urlsWebService[chaveUrl]["NfeRetAutorizacao"];
-                string soapAction = "http://www.portalfiscal.inf.br/nfe/wsdl/NFeRetAutorizacao4/nfeRetAutorizacaoLote";
-
-                string xmlConsulta = $@"<?xml version='1.0' encoding='UTF-8'?>
-                    <consReciNFe xmlns='http://www.portalfiscal.inf.br/nfe' versao='4.00'>
-                        <tpAmb>{(homologacao ? "2" : "1")}</tpAmb>
-                        <nRec>{numeroRecibo}</nRec>
-                    </consReciNFe>";
-
-                string soapEnvelope = CriarEnvelopeSoap(xmlConsulta, "nfeDadosMsg", "http://www.portalfiscal.inf.br/nfe/wsdl/NFeRetAutorizacao4");
-
-                return await EnviarRequisicaoSoap(url, soapAction, soapEnvelope);
-            }
-            catch (Exception ex)
-            {
-                throw new Exception($"Erro ao consultar retorno de autorização: {ex.Message}", ex);
-            }
+                var soapEnvelope = CriarSoapEnvelopeConsultaRecibo(numeroRecibo);
+                return await EnviarSoap(urlRetAutorizacao, soapEnvelope, "http://www.portalfiscal.inf.br/nfe/wsdl/NFeRetAutorizacao4/nfeRetAutorizacaoLote");
+            }, "ConsultarRecibo");
         }
 
         public async Task<string> ConsultarProtocolo(string chaveAcesso, string uf, bool homologacao = true)
         {
-            try
+            var ambiente = homologacao ? AmbienteNFe.Homologacao : AmbienteNFe.Producao;
+            var urls = _configuracaoService.ObterUrlsWebService(uf, ambiente);
+            var urlConsulta = urls.UrlNfeConsultaProtocolo;
+
+            return await ExecutarComRetry(async () =>
             {
-                string ambiente = homologacao ? "HOMOLOGACAO" : "PRODUCAO";
-                string chaveUrl = $"{uf}_{ambiente}";
-                
-                if (!_urlsWebService.ContainsKey(chaveUrl))
-                {
-                    chaveUrl = $"SVRS_{ambiente}";
-                }
-
-                string url = _urlsWebService[chaveUrl]["NfeConsultaProtocolo"];
-                string soapAction = "http://www.portalfiscal.inf.br/nfe/wsdl/NFeConsultaProtocolo4/nfeConsultaNF";
-
-                string xmlConsulta = $@"<?xml version='1.0' encoding='UTF-8'?>
-                    <consSitNFe xmlns='http://www.portalfiscal.inf.br/nfe' versao='4.00'>
-                        <tpAmb>{(homologacao ? "2" : "1")}</tpAmb>
-                        <xServ>CONSULTAR</xServ>
-                        <chNFe>{chaveAcesso}</chNFe>
-                    </consSitNFe>";
-
-                string xmlAssinado = _certificadoService.AssinarXml(xmlConsulta, "consSitNFe");
-                string soapEnvelope = CriarEnvelopeSoap(xmlAssinado, "nfeDadosMsg", "http://www.portalfiscal.inf.br/nfe/wsdl/NFeConsultaProtocolo4");
-
-                return await EnviarRequisicaoSoap(url, soapAction, soapEnvelope);
-            }
-            catch (Exception ex)
-            {
-                throw new Exception($"Erro ao consultar protocolo: {ex.Message}", ex);
-            }
-        }
-
-        public async Task<string> ConsultarStatusServico(string uf, bool homologacao = true)
-        {
-            try
-            {
-                string ambiente = homologacao ? "HOMOLOGACAO" : "PRODUCAO";
-                string chaveUrl = $"{uf}_{ambiente}";
-                
-                if (!_urlsWebService.ContainsKey(chaveUrl))
-                {
-                    chaveUrl = $"SVRS_{ambiente}";
-                }
-
-                string url = _urlsWebService[chaveUrl]["NfeStatusServico"];
-                string soapAction = "http://www.portalfiscal.inf.br/nfe/wsdl/NFeStatusServico4/nfeStatusServicoNF";
-
-                string xmlConsulta = $@"<?xml version='1.0' encoding='UTF-8'?>
-                    <consStatServ xmlns='http://www.portalfiscal.inf.br/nfe' versao='4.00'>
-                        <tpAmb>{(homologacao ? "2" : "1")}</tpAmb>
-                        <cUF>{ObterCodigoUF(uf)}</cUF>
-                        <xServ>STATUS</xServ>
-                    </consStatServ>";
-
-                string xmlAssinado = _certificadoService.AssinarXml(xmlConsulta, "consStatServ");
-                string soapEnvelope = CriarEnvelopeSoap(xmlAssinado, "nfeDadosMsg", "http://www.portalfiscal.inf.br/nfe/wsdl/NFeStatusServico4");
-
-                return await EnviarRequisicaoSoap(url, soapAction, soapEnvelope);
-            }
-            catch (Exception ex)
-            {
-                throw new Exception($"Erro ao consultar status do serviço: {ex.Message}", ex);
-            }
+                var soapEnvelope = CriarSoapEnvelopeConsultaProtocolo(chaveAcesso);
+                return await EnviarSoap(urlConsulta, soapEnvelope, "http://www.portalfiscal.inf.br/nfe/wsdl/NFeConsultaProtocolo4/nfeConsultaNF");
+            }, "ConsultarProtocolo");
         }
 
         public async Task<string> EnviarEvento(string xmlEvento, string uf, bool homologacao = true)
         {
-            try
+            var ambiente = homologacao ? AmbienteNFe.Homologacao : AmbienteNFe.Producao;
+            var urls = _configuracaoService.ObterUrlsWebService(uf, ambiente);
+            var urlEvento = urls.UrlRecepcaoEvento;
+
+            return await ExecutarComRetry(async () =>
             {
-                string ambiente = homologacao ? "HOMOLOGACAO" : "PRODUCAO";
-                string chaveUrl = $"{uf}_{ambiente}";
-                
-                if (!_urlsWebService.ContainsKey(chaveUrl))
-                {
-                    chaveUrl = $"SVRS_{ambiente}";
-                }
-
-                string url = _urlsWebService[chaveUrl]["RecepcaoEvento"];
-                string soapAction = "http://www.portalfiscal.inf.br/nfe/wsdl/NFeRecepcaoEvento4/nfeRecepcaoEvento";
-
-                string soapEnvelope = CriarEnvelopeSoap(xmlEvento, "nfeDadosMsg", "http://www.portalfiscal.inf.br/nfe/wsdl/NFeRecepcaoEvento4");
-
-                return await EnviarRequisicaoSoap(url, soapAction, soapEnvelope);
-            }
-            catch (Exception ex)
-            {
-                throw new Exception($"Erro ao enviar evento: {ex.Message}", ex);
-            }
+                var soapEnvelope = CriarSoapEnvelopeEvento(xmlEvento);
+                return await EnviarSoap(urlEvento, soapEnvelope, "http://www.portalfiscal.inf.br/nfe/wsdl/NFeRecepcaoEvento4/nfeRecepcaoEvento");
+            }, "EnviarEvento");
         }
 
         public async Task<string> InutilizarNumeracao(string xmlInutilizacao, string uf, bool homologacao = true)
         {
+            var ambiente = homologacao ? AmbienteNFe.Homologacao : AmbienteNFe.Producao;
+            var urls = _configuracaoService.ObterUrlsWebService(uf, ambiente);
+            var urlInutilizacao = urls.UrlNfeInutilizacao;
+
+            return await ExecutarComRetry(async () =>
+            {
+                var soapEnvelope = CriarSoapEnvelopeInutilizacao(xmlInutilizacao);
+                return await EnviarSoap(urlInutilizacao, soapEnvelope, "http://www.portalfiscal.inf.br/nfe/wsdl/NFeInutilizacao4/nfeInutilizacaoNF");
+            }, "InutilizarNumeracao");
+        }
+
+        public async Task<string> ConsultarStatusServico(string uf, bool homologacao = true)
+        {
+            var ambiente = homologacao ? AmbienteNFe.Homologacao : AmbienteNFe.Producao;
+            var urls = _configuracaoService.ObterUrlsWebService(uf, ambiente);
+            var urlStatus = urls.UrlNfeStatusServico;
+
+            return await ExecutarComRetry(async () =>
+            {
+                var soapEnvelope = CriarSoapEnvelopeStatusServico(uf, homologacao);
+                return await EnviarSoap(urlStatus, soapEnvelope, "http://www.portalfiscal.inf.br/nfe/wsdl/NFeStatusServico4/nfeStatusServicoNF");
+            }, "ConsultarStatusServico");
+        }
+
+        private async Task<T> ExecutarComRetry<T>(Func<Task<T>> operacao, string nomeOperacao)
+        {
+            var retryPolicy = Policy
+                .Handle<HttpRequestException>()
+                .Or<TaskCanceledException>()
+                .Or<AuthenticationException>()
+                .WaitAndRetryAsync(
+                    retryCount: 3,
+                    sleepDurationProvider: retryAttempt => TimeSpan.FromSeconds(Math.Pow(2, retryAttempt)), // Backoff exponencial
+                    onRetry: (outcome, timespan, retryCount, context) =>
+                    {
+                        _logger.LogWarning($"Tentativa {retryCount} de {nomeOperacao} falhou. Tentando novamente em {timespan.TotalSeconds}s. Erro: {outcome?.Message}");
+                    });
+
             try
             {
-                string ambiente = homologacao ? "HOMOLOGACAO" : "PRODUCAO";
-                string chaveUrl = $"{uf}_{ambiente}";
-                
-                if (!_urlsWebService.ContainsKey(chaveUrl))
-                {
-                    chaveUrl = $"SVRS_{ambiente}";
-                }
-
-                string url = _urlsWebService[chaveUrl]["NfeInutilizacao"];
-                string soapAction = "http://www.portalfiscal.inf.br/nfe/wsdl/NFeInutilizacao4/nfeInutilizacaoNF";
-
-                string soapEnvelope = CriarEnvelopeSoap(xmlInutilizacao, "nfeDadosMsg", "http://www.portalfiscal.inf.br/nfe/wsdl/NFeInutilizacao4");
-
-                return await EnviarRequisicaoSoap(url, soapAction, soapEnvelope);
+                return await retryPolicy.ExecuteAsync(operacao);
             }
             catch (Exception ex)
             {
-                throw new Exception($"Erro ao inutilizar numeração: {ex.Message}", ex);
+                _logger.LogError(ex, $"Falha definitiva em {nomeOperacao} após todas as tentativas");
+                throw;
             }
         }
 
-        private string CriarEnvelopeSoap(string xmlBody, string tagBody, string xmlns)
-        {
-            return $@"<?xml version='1.0' encoding='utf-8'?>
-                <soap12:Envelope xmlns:xsi='http://www.w3.org/2001/XMLSchema-instance' 
-                                xmlns:xsd='http://www.w3.org/2001/XMLSchema' 
-                                xmlns:soap12='http://www.w3.org/2003/05/soap-envelope'>
-                    <soap12:Body>
-                        <{tagBody} xmlns='{xmlns}'>
-                            {xmlBody}
-                        </{tagBody}>
-                    </soap12:Body>
-                </soap12:Envelope>";
-        }
-
-        private async Task<string> EnviarRequisicaoSoap(string url, string soapAction, string soapEnvelope)
+        private async Task<string> EnviarSoap(string url, string soapEnvelope, string soapAction)
         {
             try
             {
-                using var httpClient = ObterHttpClientAtualizado();
-                var content = new StringContent(soapEnvelope, Encoding.UTF8, "application/soap+xml");
-                
-                if (!string.IsNullOrEmpty(soapAction))
+                _logger.LogDebug($"Enviando SOAP para: {url}");
+                _logger.LogTrace($"SOAP Envelope: {soapEnvelope}");
+
+                // Configurar certificado se necessário
+                var certificado = _certificadoService.ObterCertificado();
+                if (certificado != null)
                 {
-                    httpClient.DefaultRequestHeaders.Clear();
-                    httpClient.DefaultRequestHeaders.Add("SOAPAction", soapAction);
+                    var handler = new HttpClientHandler();
+                    handler.ClientCertificates.Add(certificado);
+                    handler.SslProtocols = SslProtocols.Tls12 | SslProtocols.Tls13;
+                    
+                    using var clientComCertificado = new HttpClient(handler);
+                    clientComCertificado.Timeout = _httpClient.Timeout;
+                    return await EnviarSoapInterno(clientComCertificado, url, soapEnvelope, soapAction);
                 }
 
-                var response = await httpClient.PostAsync(url, content);
-                
-                if (!response.IsSuccessStatusCode)
-                {
-                    throw new Exception($"Erro HTTP: {response.StatusCode} - {response.ReasonPhrase}");
-                }
-
-                var responseContent = await response.Content.ReadAsStringAsync();
-                return ExtrairConteudoSoap(responseContent);
+                return await EnviarSoapInterno(_httpClient, url, soapEnvelope, soapAction);
             }
             catch (Exception ex)
             {
-                throw new Exception($"Erro na requisição SOAP: {ex.Message}", ex);
+                _logger.LogError(ex, $"Erro ao enviar SOAP para {url}");
+                throw;
             }
         }
 
-        private string ExtrairConteudoSoap(string soapResponse)
+        private async Task<string> EnviarSoapInterno(HttpClient client, string url, string soapEnvelope, string soapAction)
         {
-            try
+            var content = new StringContent(soapEnvelope, Encoding.UTF8, "text/xml");
+            content.Headers.Add("SOAPAction", soapAction);
+
+            var response = await client.PostAsync(url, content);
+            
+            if (!response.IsSuccessStatusCode)
             {
-                XmlDocument doc = new XmlDocument();
-                doc.LoadXml(soapResponse);
-
-                XmlNamespaceManager nsmgr = new XmlNamespaceManager(doc.NameTable);
-                nsmgr.AddNamespace("soap", "http://www.w3.org/2003/05/soap-envelope");
-                nsmgr.AddNamespace("soap12", "http://www.w3.org/2003/05/soap-envelope");
-
-                // Procura pelo Body
-                XmlNode? bodyNode = doc.SelectSingleNode("//soap:Body", nsmgr) ?? 
-                                   doc.SelectSingleNode("//soap12:Body", nsmgr);
-
-                if (bodyNode != null && bodyNode.HasChildNodes && bodyNode.FirstChild != null)
-                {
-                    // Retorna o conteúdo do primeiro filho do Body
-                    return bodyNode.FirstChild.InnerXml;
-                }
-
-                return soapResponse;
+                var errorContent = await response.Content.ReadAsStringAsync();
+                _logger.LogError($"Erro HTTP {response.StatusCode}: {errorContent}");
+                throw new HttpRequestException($"Erro HTTP {response.StatusCode}: {response.ReasonPhrase}");
             }
-            catch
-            {
-                return soapResponse;
-            }
+
+            var responseContent = await response.Content.ReadAsStringAsync();
+            _logger.LogTrace($"Resposta SOAP: {responseContent}");
+            
+            return responseContent;
+        }
+
+        private string CriarSoapEnvelopeAutorizacao(string xmlLote)
+        {
+            return $@"<?xml version=""1.0"" encoding=""UTF-8""?>
+<soap:Envelope xmlns:soap=""http://www.w3.org/2003/05/soap-envelope"" xmlns:nfe=""http://www.portalfiscal.inf.br/nfe/wsdl/NFeAutorizacao4"">
+    <soap:Header/>
+    <soap:Body>
+        <nfe:nfeDadosMsg>
+            <![CDATA[{xmlLote}]]>
+        </nfe:nfeDadosMsg>
+    </soap:Body>
+</soap:Envelope>";
+        }
+
+        private string CriarSoapEnvelopeConsultaRecibo(string numeroRecibo)
+        {
+            var ambiente = _configuracaoService.ObterAmbienteAtual();
+            var xmlConsulta = $@"<?xml version=""1.0"" encoding=""UTF-8""?>
+<consReciNFe xmlns=""http://www.portalfiscal.inf.br/nfe"" versao=""4.00"">
+    <tpAmb>{(int)ambiente}</tpAmb>
+    <nRec>{numeroRecibo}</nRec>
+</consReciNFe>";
+
+            return $@"<?xml version=""1.0"" encoding=""UTF-8""?>
+<soap:Envelope xmlns:soap=""http://www.w3.org/2003/05/soap-envelope"" xmlns:nfe=""http://www.portalfiscal.inf.br/nfe/wsdl/NFeRetAutorizacao4"">
+    <soap:Header/>
+    <soap:Body>
+        <nfe:nfeDadosMsg>
+            <![CDATA[{xmlConsulta}]]>
+        </nfe:nfeDadosMsg>
+    </soap:Body>
+</soap:Envelope>";
+        }
+
+        private string CriarSoapEnvelopeConsultaProtocolo(string chaveAcesso)
+        {
+            var ambiente = _configuracaoService.ObterAmbienteAtual();
+            var xmlConsulta = $@"<?xml version=""1.0"" encoding=""UTF-8""?>
+<consSitNFe xmlns=""http://www.portalfiscal.inf.br/nfe"" versao=""4.00"">
+    <tpAmb>{(int)ambiente}</tpAmb>
+    <xServ>CONSULTAR</xServ>
+    <chNFe>{chaveAcesso}</chNFe>
+</consSitNFe>";
+
+            return $@"<?xml version=""1.0"" encoding=""UTF-8""?>
+<soap:Envelope xmlns:soap=""http://www.w3.org/2003/05/soap-envelope"" xmlns:nfe=""http://www.portalfiscal.inf.br/nfe/wsdl/NFeConsultaProtocolo4"">
+    <soap:Header/>
+    <soap:Body>
+        <nfe:nfeDadosMsg>
+            <![CDATA[{xmlConsulta}]]>
+        </nfe:nfeDadosMsg>
+    </soap:Body>
+</soap:Envelope>";
+        }
+
+        private string CriarSoapEnvelopeEvento(string xmlEvento)
+        {
+            return $@"<?xml version=""1.0"" encoding=""UTF-8""?>
+<soap:Envelope xmlns:soap=""http://www.w3.org/2003/05/soap-envelope"" xmlns:nfe=""http://www.portalfiscal.inf.br/nfe/wsdl/NFeRecepcaoEvento4"">
+    <soap:Header/>
+    <soap:Body>
+        <nfe:nfeDadosMsg>
+            <![CDATA[{xmlEvento}]]>
+        </nfe:nfeDadosMsg>
+    </soap:Body>
+</soap:Envelope>";
+        }
+
+        private string CriarSoapEnvelopeInutilizacao(string xmlInutilizacao)
+        {
+            return $@"<?xml version=""1.0"" encoding=""UTF-8""?>
+<soap:Envelope xmlns:soap=""http://www.w3.org/2003/05/soap-envelope"" xmlns:nfe=""http://www.portalfiscal.inf.br/nfe/wsdl/NFeInutilizacao4"">
+    <soap:Header/>
+    <soap:Body>
+        <nfe:nfeDadosMsg>
+            <![CDATA[{xmlInutilizacao}]]>
+        </nfe:nfeDadosMsg>
+    </soap:Body>
+</soap:Envelope>";
+        }
+
+        private string CriarSoapEnvelopeStatusServico(string uf, bool homologacao)
+        {
+            var ambiente = homologacao ? 2 : 1;
+            var cUF = ObterCodigoUF(uf);
+            
+            var xmlStatus = $@"<?xml version=""1.0"" encoding=""UTF-8""?>
+<consStatServ xmlns=""http://www.portalfiscal.inf.br/nfe"" versao=""4.00"">
+    <tpAmb>{ambiente}</tpAmb>
+    <cUF>{cUF}</cUF>
+    <xServ>STATUS</xServ>
+</consStatServ>";
+
+            return $@"<?xml version=""1.0"" encoding=""UTF-8""?>
+<soap:Envelope xmlns:soap=""http://www.w3.org/2003/05/soap-envelope"" xmlns:nfe=""http://www.portalfiscal.inf.br/nfe/wsdl/NFeStatusServico4"">
+    <soap:Header/>
+    <soap:Body>
+        <nfe:nfeDadosMsg>
+            <![CDATA[{xmlStatus}]]>
+        </nfe:nfeDadosMsg>
+    </soap:Body>
+</soap:Envelope>";
         }
 
         private int ObterCodigoUF(string uf)
         {
             var codigosUF = new Dictionary<string, int>
             {
-                ["AC"] = 12, ["AL"] = 27, ["AP"] = 16, ["AM"] = 13, ["BA"] = 29,
+                ["AC"] = 12, ["AL"] = 17, ["AP"] = 16, ["AM"] = 23, ["BA"] = 29,
                 ["CE"] = 23, ["DF"] = 53, ["ES"] = 32, ["GO"] = 52, ["MA"] = 21,
                 ["MT"] = 51, ["MS"] = 50, ["MG"] = 31, ["PA"] = 15, ["PB"] = 25,
                 ["PR"] = 41, ["PE"] = 26, ["PI"] = 22, ["RJ"] = 33, ["RN"] = 24,
@@ -421,12 +310,7 @@ namespace nfse_backend.Services.WebService
                 ["SE"] = 28, ["TO"] = 17
             };
 
-            return codigosUF.ContainsKey(uf) ? codigosUF[uf] : 0;
-        }
-
-        public void Dispose()
-        {
-            _httpClient?.Dispose();
+            return codigosUF.ContainsKey(uf.ToUpper()) ? codigosUF[uf.ToUpper()] : 33;
         }
     }
 }

@@ -1,0 +1,121 @@
+Documento técnico completo - Emissor de NF-e (produtos) e
+ NFS-e (serviços)
+ Objetivo: este documento reúne TODAS as referências oficiais, requisitos técnicos, exemplos práticos e
+ checklist de implementação necessários para criar, testar, assinar, enviar e tratar Notas Fiscais
+ Eletrônicas de produtos (NF-e) e Notas Fiscais de Serviços Eletrônicas (NFS-e) no Brasil.
+ Sumário
+ 1. Introdução e escopo
+ 2. Fontes oficiais essenciais (links)
+ 3. Componentes técnicos (XML, XSD, WebServices, Assinatura)
+ 4. Regras fiscais e campos obrigatórios (produtos e serviços)
+ 5. Eventos (CCe, Cancelamento, Inutilização, Distribuição DFe)
+ 6. DANFE / Impressão e requisitos de transporte
+ 7. NFS-e (padrões municipais e ABRASF / modelo nacional)
+ 8. Homologação, ambientes e URLs de webservices
+ 9. Segurança, certificado digital e assinatura XML (ICP-Brasil)
+ 10. Exemplos de XML (NF-e minimal) e SOAP (nfeAutorizacao)
+ 11. Validação XSD, tratamento de rejeições e códigos comuns
+ 12. Contingência, retenção de arquivos e armazenamento
+ 13. Checklists de implementação e deploy
+ 14. Referências e links oficiais
+1. Introdução e escopo
+ Este documento destina-se a desenvolvedores e equipes técnicas que vão implementar um emissor de
+ notas fiscais eletrônicas para PRODUTOS (NF-e - modelo 55) e para SERVIÇOS (NFS-e - modelo
+ municipal). Inclui: referências oficiais, XSDs, fluxos de envio/autorização, exemplos de XML e SOAP,
+ assinatura digital (XML-DSig com certificado ICP-Brasil), tratamento de eventos (Carta de Correção,
+ Cancelamento, Inutilização), geração de DANFE, regras fiscais essenciais (ICMS, IPI, PIS, COFINS, ISS)
+ e práticas de homologação e produção.
+ 2. Fontes oficiais essenciais (URLs)
+ Descrição
+ URL
+ Portal Nacional da NF-e (página principal)
+ Esquemas XML / Pacotes de Liberação (XSDs) - NF-e / NFC-e
+ https://www.nfe.fazenda.gov.br/portal/
+ https://www.nfe.fazenda.gov.br/portal/listaConteudo.aspx?tipoConteudo=BMPFMBoln3w%3D
+ Manual de Integração / Manual do Contribuinte (MOC) - NF-e
+ Página de WebServices (lista de serviços e exemplos)
+ Disponibilidade e status dos serviços NF-e
+ Manual / Especificações do DANFE (Anexo III)
+ Distribuição DFe - documentos relacionados (NFeDistribuicaoDFe)
+ ABRASF - Modelos e manuais NFS-e (padrão municipal / ABRASF)
+ Pacote de XSD para NFS-e (gov.br / modelo nacional)
+ Informações sobre Certificado Digital / ICP-Brasil (ITI / gov.br)
+ 3. Componentes técnicos (resumo)
+ https://www.nfe.fazenda.gov.br/portal/exibirArquivo.aspx?conteudo=d%2FNN9SSgick%3D
+ https://www.nfe.fazenda.gov.br/portal/webServices.aspx?tipoConteudo=OUC%2FYVNWZfo%3D
+ https://www.nfe.fazenda.gov.br/portal/disponibilidade.aspx
+ https://www.nfe.fazenda.gov.br/portal/exibirArquivo.aspx?conteudo=f+NhsSn3%2F5M%3D
+ https://moc.sped.fazenda.pr.gov.br/NFeDistribuicaoDFe.html
+ https://abrasf.org.br/biblioteca/arquivos-publicos/nfs-e
+ https://www.gov.br/nfse/pt-br/biblioteca/documentacao-tecnica/leiaute-e-esquemas-atuais/xsd_pl_nfse_1-00-producao.zip/view
+ https://www.gov.br/iti/pt-br/assuntos/certificado-digital- XML da NF-e (modelo 55): campos principais (ide, emit, dest, det[produto], impostos, total, transporte,
+ cobranca, infAdic). O documento XML deve seguir estritamente os XSDs oficiais. (ver seção 14 
+referências). - XSDs: baixe o pacote de liberação e valide localmente antes do envio para evitar rejeições.- Assinatura XML (XML-DSig): cada NF-e deve ser assinada digitalmente com certificado ICP-Brasil válido
+ (A1 ou A3) antes do envio. - WebServices SOAP: principais operações — nfeAutorizacao (envio de lote),
+ nfeRetAutorizacao (consulta do lote), nfeConsultaProtocolo, nfeInutilizacao, nfeEvento (envio de eventos
+ como CCe e Cancelamento), NFeDistribuicaoDFe (distribuição). - Ambiente: homologacao (teste) e
+ producao. URLs são por autorizador/UF (ou SVRS/SVSP). Consulte a lista de URLs oficial.
+ 4. Regras fiscais e campos obrigatórios (produtos e serviços)
+ Campos e cálculos essenciais (NFe - produtos): - item/det: prod (cProd, cEAN, xProd, NCM, CFOP,
+ uCom, qCom, vUnCom, vProd) - impostos por item: ICMS (vBC, pICMS, vICMS), IPI (quando aplicável),
+ PIS/COFINS (cumulativo/não cumulativo), ISS (se houver incidência mista) - totais: vProd (soma itens),
+ vDesc, vII, vIPI, vPIS, vCOFINS, vICMS, vNF (valor total) - impostos estaduais e regras de substituição
+ tributária (ICMS ST) variam por UF (implemente tabela de alíquotas/estados). Campos e cálculos
+ essenciais (NFS-e - serviços): - campos variam por município; adote o padrão ABRASF ou o leiaute
+ municipal. Campos comuns: prestador (CNPJ/CPF), tomador, discriminação do serviço, valores, ISS
+ retido/aliquota, CNAE / codigo do serviço municipal. Observações: regras fiscais (alíquotas, substituição
+ tributária, isenções) mudam frequentemente — mantenha atualizadas as Notas Técnicas e legislações
+ estaduais/municipais.
+ 5. Eventos: Carta de Correção (CCe), Cancelamento, Inutilização e
+ Distribuição DFe
+- Carta de Correção (CCe): permite correções restritas ao que foi emitido. Não pode alterar valores,
+ destinatário ou alterar campos fiscais. Deve ser enviada como Evento assinado. - Cancelamento:
+ somente possível dentro do prazo e se a NF-e não estiver fora das regras (ver Manual e Notas Técnicas).
+ Requer justificativa e protocolo de cancelamento. - Inutilização: quando um intervalo numérico não será
+ usado. - Distribuição DFe: uso para sincronizar/recuperar documentos relacionados ao CNPJ. Requer
+ certificado digital e consulta por NSU ou por chave.
+ 6. DANFE (Documento Auxiliar da NF-e) e requisitos de impressão- O DANFE é o documento auxiliar de consulta da NF-e impresso durante o transporte. Deve seguir o
+ layout oficial (Anexo III do Manual). - Contem: chave de acesso, QR-Code (quando aplica), dados do
+ emitente/destinatário, produtos resumidos, valores e dados do transporte. - Código de barras:
+ CODE-128C para a chave de acesso. Ver manual para margens e posicionamento.
+ 7. NFS-e (Notas Fiscais de Serviços) - panorama- NFS-e é municipal: leiautes e webservices variam entre prefeituras. Existem modelos padronizados:
+ ABRASF (antigo) e iniciativas de modelo nacional (gov.br / NFSe). - Recomendação: utilizar o pacote
+ XSD do seu município ou o modelo nacional quando aderido. Consulte a prefeitura alvo e a ABRASF para
+ mapeamento.
+ 8. Homologação, ambientes e URLs de WebServices- Sempre testar em AMBIENTE DE HOMOLOGAÇÃO antes de enviar para produção. - As URLs de
+ webservices são por autorizador (UF) ou por SVRS/SVSP; ver lista oficial de URLs por estado (ex.:
+ SEFAZ-SP publica sua lista). - Exemplo de serviços principais: NFeAutorizacao, NFeRetAutorizacao,
+ NFeConsultaProtocolo, NFeInutilizacao, NFeStatusServico, NFeRecepcaoEvento, NFeDistribuicaoDFe.
+ 9. Certificado Digital (ICP-Brasil) e assinatura XML- Certificado ICP-Brasil (A1 - arquivo, A3 - token/cartao) é obrigatório para assinar o XML da NF-e. 
+Assinatura deve seguir XML Digital Signature (XML-DSig), com o no corpo do documento conforme MOC.- Proteja o arquivo A1 com acesso controlado; para A3 use integração via middleware com leitor ou HSM.- Para validar localmente: gere assinatura, valide o XML contra XSD e use o serviço de consulta do portal
+ para confirmar protocolo.
+ 10. Exemplos práticos
+ Exemplo (trecho reduzido) - NF-e (modelo 55) - versão 4.00: 000000000000001 35 00000015 VENDA 55 1
+ 110 2019-05-20T10:00:00-03:00 00000000000191 Empresa Exemplo Ltda Rua Exemplo 100 Sao Paulo SP
+ 00000000000272 Cliente Exemplo 123 Produto Exemplo 6109.10.00 5102 un 1.00 100.00 100.00 0 00
+ 18.00 18.00 100.00 18.00 118.00 (Observações: este é um trecho didático - use os XSDs oficiais
+ para garantir os nomes e ordens corretas.)
+ Exemplo (esqueleto) - SOAP envelope para nfeAutorizacao: POST /webservices/NFeAutorizacao4.asmx
+ HTTP/1.1 Host: nfe.sefaz.xxx.gov.br Content-Type: text/xml; charset=utf-8 SOAPAction:
+ "http://www.portalfiscal.inf.br/nfe/wsdl/NFeAutorizacao4"
+ 11. Validação XSD e rejeições comuns- Sempre validar contra o XSD correspondente à versão (ex.: 4.00 / 1.21 pacotes). - Rejeições comuns: *
+ 204 - Duplicidade de NF-e (chave já existe) * 301 - Data de emissão muito superior/ inferior * 509 
+Conteúdo do XML difere do schema / campo ausente * 878 / 876 - ICMS / Alíquota incompatível (Consulte
+ o Manual de Integração para a lista completa de códigos e descrições.)
+12. Contingência e armazenamento- Contingência: políticas por SEFAZ (emissão em contingência off-line, FS-DA, etc.). Implemente modo
+ que guarde XMLs assinados e tente envio posterior. - Armazenamento: guarde XMLs assinados,
+ protocolos de autorização, DANFE (PDF), eventos e logs. Prazo legal p/ guarda: varie conforme
+ legislação (recomendado 5 anos ou conforme contador). - Segurança: criptografe backups, restrinja
+ acesso aos certificados e chaves privadas.
+ 13. Checklist de implementação (pragmático)- Baixar e versionar o pacote XSD oficial- Implementar gerador de XML baseado em modelos (mapeamento DTO -> XML)- Implementar assinatura XML (A1 e A3) e testes unitários- Validar localmente contra XSD e regras das Notas Técnicas- Configurar cliente SOAP (timeout, SSL, SOAPAction, compressão opcional)- Testar envio em homologacao, tratar rejeições e logar protocolos- Implementar recepcao de eventos (CCe, Cancelamento) e armazenar- Gerar DANFE (PDF) conforme manual (opcional: integrar com impressora fiscal)- Automatizar atualizações das Notas Técnicas e XSDs no repositório- Procedimentos de segurança para certificados e backups
+ 14. Referências e links oficiais (principais)- Portal Nacional NF-e (central): https://www.nfe.fazenda.gov.br/portal/ (fonte principal de manuais, XSDs e
+ webservices). - Pacote de Esquemas (XSDs):
+ https://www.nfe.fazenda.gov.br/portal/listaConteudo.aspx?tipoConteudo=BMPFMBoln3w%3D - Manual de Integração
+ (MOC - Contribuinte): https://www.nfe.fazenda.gov.br/portal/exibirArquivo.aspx?conteudo=d%2FNN9SSgick%3D 
+WebServices (lista): https://www.nfe.fazenda.gov.br/portal/webServices.aspx?tipoConteudo=OUC%2FYVNWZfo%3D- DANFE (Anexo III): https://www.nfe.fazenda.gov.br/portal/exibirArquivo.aspx?conteudo=f+NhsSn3%2F5M%3D 
+NFS-e / ABRASF: https://abrasf.org.br/biblioteca/arquivos-publicos/nfs-e - Pacote XSD NFS-e (gov.br): https://www.g
+ ov.br/nfse/pt-br/biblioteca/documentacao-tecnica/leiaute-e-esquemas-atuais/xsd_pl_nfse_1-00-producao.zip/view 
+Certificado digital / ICP-Brasil: https://www.gov.br/iti/pt-br/assuntos/certificado-digital
+ Observação: Este documento agrega as principais informações técnicas e links oficiais para iniciar a implementação
+ de um emissor de NF-e e NFS-e. Algumas regras (Notas Técnicas, alíquotas e leiautes municipais) mudam
+ frequentemente; verifique as fontes oficiais citadas antes de ir para produção.

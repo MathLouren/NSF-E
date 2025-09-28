@@ -18,6 +18,8 @@ using nfse_backend.Services.Eventos;
 using nfse_backend.Services.Configuracao;
 using nfse_backend.Services.Armazenamento;
 using nfse_backend.Services.NotaFiscal;
+using nfse_backend.Services.NFe;
+using nfse_backend.Services.Monitoramento;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -42,11 +44,20 @@ builder.Services.AddSingleton<XmlGeneratorService>();
 builder.Services.AddSingleton<CertificadoDigitalService>();
 builder.Services.AddScoped<SefazWebServiceClient>();
 builder.Services.AddSingleton<CalculoImpostosService>();
+builder.Services.AddSingleton<TabelasImpostosService>();
 builder.Services.AddScoped<EventosNFeService>();
 builder.Services.AddScoped<DanfeService>();
 builder.Services.AddSingleton<ConfiguracaoNFeService>();
 builder.Services.AddScoped<ArmazenamentoSeguroService>();
 builder.Services.AddScoped<NFeService>();
+builder.Services.AddScoped<ContingenciaNFeService>();
+builder.Services.AddScoped<AuditoriaService>();
+
+// Serviços de monitoramento
+builder.Services.AddHostedService<MonitoramentoService>();
+
+// HttpClient com Polly para resiliência
+builder.Services.AddHttpClient<SefazWebServiceClient>();
 
 builder.Services.AddCors(options =>
 {
@@ -96,3 +107,6 @@ app.UseStaticFiles();
 app.MapControllers();
 
 app.Run();
+
+// Make the implicit Program class accessible to integration tests
+public partial class Program { }

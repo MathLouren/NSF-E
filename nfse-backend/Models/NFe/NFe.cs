@@ -62,13 +62,13 @@ namespace nfse_backend.Models.NFe
         public int mod { get; set; } = 55; // Modelo (55 para NF-e)
         public int serie { get; set; } = 1; // Série da NF-e
         public int nNF { get; set; } // Número da NF-e
-        public DateTime dhEmi { get; set; } = DateTime.Now; // Data e hora de emissão
+        public DateTime? dhEmi { get; set; } = DateTime.Now; // Data e hora de emissão
         public DateTime? dhSaiEnt { get; set; } // Data e hora de saída/entrada
         public int tpNF { get; set; } = 1; // Tipo (0=Entrada, 1=Saída)
         public int idDest { get; set; } = 1; // Identificação do destino (1=Operação interna)
         public int cMunFG { get; set; } // Código do município de ocorrência do fato gerador
         public int tpImp { get; set; } = 1; // Formato de impressão do DANFE
-        public int tpEmis { get; set; } = 1; // Tipo de emissão (1=Normal)
+        public int tpEmis { get; set; } = 1; // Tipo de emissão (1=Normal, 2=FS-DA, 8=EPEC)
         public int cDV { get; set; } // Dígito verificador
         public int tpAmb { get; set; } = 2; // Ambiente (1=Produção, 2=Homologação)
         public int finNFe { get; set; } = 1; // Finalidade (1=Normal)
@@ -76,6 +76,10 @@ namespace nfse_backend.Models.NFe
         public int indPres { get; set; } = 1; // Indicador de presença
         public int procEmi { get; set; } = 0; // Processo de emissão (0=Aplicativo contribuinte)
         public string verProc { get; set; } = "1.0.0"; // Versão do processo
+        
+        // Campos para contingência
+        public DateTime? dhCont { get; set; } // Data e hora da contingência
+        public string xJust { get; set; } = ""; // Justificativa da contingência
     }
 
     public class Emitente
@@ -181,6 +185,31 @@ namespace nfse_backend.Models.NFe
         public decimal? vICMSST { get; set; } // Valor do ICMS ST
         public decimal? pFCPST { get; set; } // Percentual do FCP ST
         public decimal? vFCPST { get; set; } // Valor do FCP ST
+        
+        // DIFAL - Diferencial de Alíquotas (EC 87/2015)
+        public decimal? vICMSUFDest { get; set; } // ICMS para UF de destino
+        public decimal? vICMSUFRemet { get; set; } // ICMS para UF do remetente
+        public decimal? pICMSUFDest { get; set; } // Percentual ICMS UF destino
+        
+        // Redução de Base de Cálculo
+        public decimal? pRedBC { get; set; } // Percentual de redução da BC
+        public decimal? pRedBCST { get; set; } // Percentual de redução da BC ST
+        
+        // Margem de Valor Agregado
+        public decimal? pMVAST { get; set; } // Percentual da MVA da ST
+        
+        // Campos para regime de estimativa
+        public decimal? vBCSTRet { get; set; } // BC do ICMS ST retido
+        public decimal? pST { get; set; } // Alíquota suportada pelo consumidor final
+        public decimal? vICMSSTRet { get; set; } // Valor do ICMS ST retido
+        public decimal? vBCFCPSTRet { get; set; } // BC do FCP ST retido
+        public decimal? pFCPSTRet { get; set; } // Percentual do FCP ST retido
+        public decimal? vFCPSTRet { get; set; } // Valor do FCP ST retido
+        
+        // Campos para diferimento
+        public decimal? pDif { get; set; } // Percentual do diferimento
+        public decimal? vICMSDif { get; set; } // Valor do ICMS diferido
+        public decimal? vICMSOp { get; set; } // Valor do ICMS da operação
     }
 
     public class IPI

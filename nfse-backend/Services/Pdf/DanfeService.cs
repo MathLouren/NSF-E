@@ -11,7 +11,6 @@ using ZXing;
 using ZXing.Common;
 using QuestPDF.Drawing;
 using SkiaSharp;
-// duplicate removed
 
 namespace nfse_backend.Services.Pdf
 {
@@ -20,7 +19,7 @@ namespace nfse_backend.Services.Pdf
         private readonly string _fontFamily = "Arial";
 
 
-        public byte[] GenerateDanfe(NFe nfe, bool isContingencia = false)
+        public byte[] GenerateDanfe(nfse_backend.Models.NFe.NFe nfe, bool isContingencia = false)
         {
             var document = Document.Create(container =>
             {
@@ -73,10 +72,10 @@ namespace nfse_backend.Services.Pdf
 
     public class DanfeCabecalho : IComponent
     {
-        private readonly NFe _nfe;
+        private readonly nfse_backend.Models.NFe.NFe _nfe;
         private readonly bool _isContingencia;
 
-        public DanfeCabecalho(NFe nfe, bool isContingencia)
+        public DanfeCabecalho(nfse_backend.Models.NFe.NFe nfe, bool isContingencia)
         {
             _nfe = nfe;
             _isContingencia = isContingencia;
@@ -231,10 +230,10 @@ namespace nfse_backend.Services.Pdf
                 var barcodeBitmap = writer.Write(chaveAcesso);
                 
                 // Converter SKBitmap para bytes PNG e exibir
-                using (var image = SKImage.FromBitmap(barcodeBitmap))
-                using (var data = image.Encode(SKEncodedImageFormat.Png, 100))
+                using (var stream = new MemoryStream())
                 {
-                    var imageBytes = data.ToArray();
+                    barcodeBitmap.Encode(stream, SKEncodedImageFormat.Png, 100);
+                    var imageBytes = stream.ToArray();
                     container.Height(50).Width(250).AlignCenter().Image(imageBytes);
                 }
             }
@@ -280,9 +279,9 @@ namespace nfse_backend.Services.Pdf
 
     public class DanfeDestinatarioRemetente : IComponent
     {
-        private readonly NFe _nfe;
+        private readonly nfse_backend.Models.NFe.NFe _nfe;
 
-        public DanfeDestinatarioRemetente(NFe nfe)
+        public DanfeDestinatarioRemetente(nfse_backend.Models.NFe.NFe nfe)
         {
             _nfe = nfe;
         }
@@ -311,7 +310,7 @@ namespace nfse_backend.Services.Pdf
                     row.RelativeItem(1).Border(0.5f).Padding(2).Column(col =>
                     {
                         col.Item().Text("DATA DA EMISSÃO").FontSize(6);
-                        col.Item().Text(_nfe.Ide.dhEmi.ToString("dd/MM/yyyy")).FontSize(9);
+                        col.Item().Text(_nfe.Ide.dhEmi?.ToString("dd/MM/yyyy") ?? "").FontSize(9);
                     });
                 });
 

@@ -13,7 +13,7 @@ export const useNfseStore = defineStore('nfse', {
       this.loading = true
       this.error = null
       try {
-        const response = await api.get('/nfse')
+        const response = await api.get('/Nfse')
         this.nfses = response.data
       } catch (error) {
         this.error = error
@@ -26,7 +26,7 @@ export const useNfseStore = defineStore('nfse', {
       this.loading = true
       this.error = null
       try {
-        const response = await api.get(`/nfse/${id}`)
+        const response = await api.get(`/Nfse/${id}`)
         this.nfse = response.data
       } catch (error) {
         this.error = error
@@ -39,7 +39,7 @@ export const useNfseStore = defineStore('nfse', {
       this.loading = true
       this.error = null
       try {
-        const response = await api.post('/nfse', nfseData)
+        const response = await api.post('/Nfse', nfseData)
         this.nfses.push(response.data)
         return response.data
       } catch (error) {

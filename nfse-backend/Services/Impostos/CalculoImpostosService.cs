@@ -11,14 +11,6 @@ namespace nfse_backend.Services.Impostos
         private Dictionary<string, decimal> _aliquotasISS = new();
         private Dictionary<string, object>? _taxRulesRaw;
 
-        public CalculoImpostosService()
-        {
-            if (!TentarCarregarRegrasDeArquivo())
-            {
-                InicializarAliquotasICMS();
-                InicializarAliquotasISS();
-            }
-        }
 
         private bool TentarCarregarRegrasDeArquivo()
         {
@@ -108,22 +100,55 @@ namespace nfse_backend.Services.Impostos
             };
         }
 
+        private readonly TabelasImpostosService _tabelasImpostos;
+
+        public CalculoImpostosService(TabelasImpostosService? tabelasImpostos = null)
+        {
+            _tabelasImpostos = tabelasImpostos ?? new TabelasImpostosService(null!);
+            
+            if (!TentarCarregarRegrasDeArquivo())
+            {
+                InicializarAliquotasICMS();
+                InicializarAliquotasISS();
+            }
+        }
+
         public ICMS CalcularICMS(ProdutoNFe produto, string ufOrigem, string ufDestino, int crt, 
             bool consumidorFinal = true, bool contribuinteICMS = false)
         {
             var icms = new ICMS
             {
                 orig = "0", // Origem nacional
-                modBC = 0, // Margem Valor Agregado
-                vBC = produto.vProd - (produto.vDesc ?? 0)
+                modBC = 3, // Valor da operação
+                vBC = produto.vProd - (produto.vDesc ?? 0) + (produto.vFrete ?? 0) + (produto.vSeg ?? 0) + (produto.vOutro ?? 0)
             };
 
+            // Verificar substituição tributária primeiro
+            bool temST = _tabelasImpostos.TemSubstituicaoTributaria(produto.NCM, ufDestino);
+            
+            if (temST)
+            {
+                return CalcularICMSComSubstituicao(produto, ufOrigem, ufDestino, crt, icms);
+            }
+
             // Determinar CST baseado no CRT
-            if (crt == 1) // Simples Nacional
+            if (crt == 1 || crt == 2) // Simples Nacional
             {
                 icms.CST = "102"; // CSOSN - Tributação sem crédito
                 icms.pICMS = 0;
                 icms.vICMS = 0;
+                
+                // Mesmo no Simples, pode haver FCP em operações interestaduais
+                if (ufOrigem != ufDestino && consumidorFinal && !contribuinteICMS)
+                {
+                    decimal fcpAliquota = _tabelasImpostos.ObterFCP(ufDestino);
+                    if (fcpAliquota > 0)
+                    {
+                        icms.pFCP = fcpAliquota;
+                        icms.vFCP = Math.Round((icms.vBC * fcpAliquota) / 100, 2);
+                    }
+                }
+                
                 return icms;
             }
 
@@ -132,7 +157,15 @@ namespace nfse_backend.Services.Impostos
             {
                 // Operação interna
                 icms.CST = "00"; // Tributada integralmente
-                icms.pICMS = ObterAliquotaICMS(ufOrigem, ufDestino);
+                icms.pICMS = _tabelasImpostos.ObterAliquotaICMS(ufOrigem, ufDestino);
+                
+                // FCP para operações internas (RJ)
+                decimal fcpAliquota = _tabelasImpostos.ObterFCP(ufOrigem);
+                if (fcpAliquota > 0)
+                {
+                    icms.pFCP = fcpAliquota;
+                    icms.vFCP = Math.Round((icms.vBC * fcpAliquota) / 100, 2);
+                }
             }
             else
             {
@@ -141,39 +174,74 @@ namespace nfse_backend.Services.Impostos
                 {
                     // DIFAL - Diferencial de alíquotas
                     icms.CST = "00";
-                    icms.pICMS = ObterAliquotaICMS(ufOrigem, ufDestino);
-                    
-                    // Calcular DIFAL
-                    decimal aliquotaInterna = ObterAliquotaICMS(ufDestino, ufDestino);
-                    decimal aliquotaInterestadual = icms.pICMS;
+                    decimal aliquotaInterestadual = _tabelasImpostos.ObterAliquotaICMS(ufOrigem, ufDestino);
+                    decimal aliquotaInterna = _tabelasImpostos.ObterAliquotaICMS(ufDestino, ufDestino);
                     decimal difal = aliquotaInterna - aliquotaInterestadual;
+                    
+                    icms.pICMS = aliquotaInterestadual;
                     
                     if (difal > 0)
                     {
-                        // FCP (Fundo de Combate à Pobreza) - 2% para RJ
-                        icms.vFCP = Math.Round((icms.vBC * 0.02m), 2);
+                        // Partilha DIFAL (EC 87/2015)
+                        // A partir de 2019: 100% para UF destino
+                        decimal vDifal = Math.Round((icms.vBC * difal) / 100, 2);
+                        icms.vICMSUFDest = vDifal; // Para UF destino
+                        icms.vICMSUFRemet = 0; // Para UF origem
+                        
+                        // FCP (Fundo de Combate à Pobreza)
+                        decimal fcpAliquota = _tabelasImpostos.ObterFCP(ufDestino);
+                        if (fcpAliquota > 0)
+                        {
+                            icms.pFCP = fcpAliquota;
+                            icms.vFCP = Math.Round((icms.vBC * fcpAliquota) / 100, 2);
+                        }
                     }
                 }
                 else
                 {
                     icms.CST = "00";
-                    icms.pICMS = ObterAliquotaICMS(ufOrigem, ufDestino);
+                    icms.pICMS = _tabelasImpostos.ObterAliquotaICMS(ufOrigem, ufDestino);
                 }
             }
 
             // Calcular valor do ICMS
             icms.vICMS = Math.Round((icms.vBC * icms.pICMS) / 100, 2);
 
-            // Verificar substituição tributária baseado no NCM/CEST
-            if (!string.IsNullOrEmpty(produto.CEST))
-            {
-                // Produto sujeito a ST
-                icms.CST = "60"; // ICMS cobrado anteriormente por ST
-                icms.vBCST = 0;
-                icms.pICMSST = 0;
-                icms.vICMSST = 0;
-            }
+            return icms;
+        }
 
+        private ICMS CalcularICMSComSubstituicao(ProdutoNFe produto, string ufOrigem, string ufDestino, int crt, ICMS icms)
+        {
+            // ICMS próprio
+            icms.CST = "10"; // Tributada e com cobrança do ICMS por substituição tributária
+            icms.pICMS = _tabelasImpostos.ObterAliquotaICMS(ufOrigem, ufDestino);
+            icms.vICMS = Math.Round((icms.vBC * icms.pICMS) / 100, 2);
+            
+            // ICMS Substituição Tributária
+            decimal mva = _tabelasImpostos.ObterMVA(produto.NCM, ufDestino);
+            if (mva > 0)
+            {
+                // Base de cálculo ST = (Valor produto + IPI + Frete + Seguro + Outros) × (1 + MVA)
+                decimal bcST = (produto.vProd + (produto.vFrete ?? 0) + (produto.vSeg ?? 0) + (produto.vOutro ?? 0)) * (1 + mva / 100);
+                icms.vBCST = Math.Round(bcST, 2);
+                
+                // Alíquota interna da UF de destino
+                decimal aliquotaInterna = _tabelasImpostos.ObterAliquotaICMS(ufDestino, ufDestino);
+                icms.pICMSST = aliquotaInterna;
+                
+                // ICMS ST = (BC ST × Alíquota interna) - ICMS próprio
+                decimal icmsST = Math.Round((icms.vBCST.Value * aliquotaInterna) / 100, 2) - icms.vICMS;
+                icms.vICMSST = Math.Max(0, icmsST);
+                
+                // FCP ST se aplicável
+                decimal fcpAliquota = _tabelasImpostos.ObterFCP(ufDestino);
+                if (fcpAliquota > 0)
+                {
+                    icms.pFCPST = fcpAliquota;
+                    icms.vFCPST = Math.Round((icms.vBCST.Value * fcpAliquota) / 100, 2);
+                }
+            }
+            
             return icms;
         }
 
