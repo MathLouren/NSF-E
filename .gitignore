@@ -56,3 +56,5 @@ nfse-frontend/.vite/
 *.p12
 *.cer
 *.crt
+
+.cursor/
