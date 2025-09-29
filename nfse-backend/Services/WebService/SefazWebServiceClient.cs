@@ -123,16 +123,32 @@ namespace nfse_backend.Services.WebService
 
         private async Task<T> ExecutarComRetry<T>(Func<Task<T>> operacao, string nomeOperacao)
         {
+            // Política de retry mais robusta com jitter e fallback
             var retryPolicy = Policy
                 .Handle<HttpRequestException>()
                 .Or<TaskCanceledException>()
                 .Or<AuthenticationException>()
+                .Or<System.Net.Sockets.SocketException>()
+                .Or<System.IO.IOException>()
                 .WaitAndRetryAsync(
-                    retryCount: 3,
-                    sleepDurationProvider: retryAttempt => TimeSpan.FromSeconds(Math.Pow(2, retryAttempt)), // Backoff exponencial
+                    retryCount: 5,
+                    sleepDurationProvider: retryAttempt => 
+                    {
+                        // Backoff exponencial com jitter para evitar thundering herd
+                        var baseDelay = TimeSpan.FromSeconds(Math.Pow(2, retryAttempt));
+                        var jitter = TimeSpan.FromMilliseconds(Random.Shared.Next(0, 1000));
+                        return baseDelay.Add(jitter);
+                    },
                     onRetry: (outcome, timespan, retryCount, context) =>
                     {
-                        _logger.LogWarning($"Tentativa {retryCount} de {nomeOperacao} falhou. Tentando novamente em {timespan.TotalSeconds}s. Erro: {outcome?.Message}");
+                        var errorMessage = outcome?.ToString() ?? "Erro desconhecido";
+                        _logger.LogWarning($"Tentativa {retryCount}/5 de {nomeOperacao} falhou. Tentando novamente em {timespan.TotalSeconds:F1}s. Erro: {errorMessage}");
+                        
+                        // Log adicional para análise - usando pattern matching seguro
+                        if (outcome is System.Exception ex && ex is HttpRequestException httpEx)
+                        {
+                            _logger.LogWarning($"Detalhes HTTP: {httpEx.Data}");
+                        }
                     });
 
             try
@@ -141,8 +157,15 @@ namespace nfse_backend.Services.WebService
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"Falha definitiva em {nomeOperacao} após todas as tentativas");
-                throw;
+                _logger.LogError(ex, $"Falha definitiva em {nomeOperacao} após 5 tentativas. Última exceção: {ex.GetType().Name}");
+                
+                // Tentar fallback para contingência se aplicável
+                if (nomeOperacao.Contains("EnviarLote") || nomeOperacao.Contains("ConsultarRecibo"))
+                {
+                    _logger.LogWarning($"Considerando ativação de contingência devido à falha em {nomeOperacao}");
+                }
+                
+                throw new SefazIndisponivelException($"SEFAZ indisponível após múltiplas tentativas: {ex.Message}", ex);
             }
         }
 

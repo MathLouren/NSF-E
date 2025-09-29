@@ -2,8 +2,11 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using System.Xml;
+using System.IO;
+using System.Linq;
 using Microsoft.Extensions.Logging;
 using nfse_backend.Models.NFe;
+using nfse_backend.Models.Contingencia;
 using nfse_backend.Services.Certificado;
 using nfse_backend.Services.WebService;
 using nfse_backend.Services.Armazenamento;
@@ -227,9 +230,59 @@ namespace nfse_backend.Services.NFe
 
                 var arquivosProcessados = new List<string>();
                 
-                // TODO: Buscar XMLs em contingência
-                // TODO: Tentar reenviar para SEFAZ
-                // TODO: Mover para pasta de processados
+                // 1. Buscar XMLs em contingência
+                var xmlsContingencia = await _armazenamentoService.ListarXmlsContingencia(cnpjEmpresa);
+                
+                if (!xmlsContingencia.Any())
+                {
+                    _logger.LogInformation($"Nenhum XML em contingência encontrado para CNPJ: {cnpjEmpresa}");
+                    return arquivosProcessados;
+                }
+
+                _logger.LogInformation($"Encontrados {xmlsContingencia.Count} XMLs em contingência para processamento");
+
+                foreach (var xmlInfo in xmlsContingencia)
+                {
+                    try
+                    {
+                        // 2. Verificar se SEFAZ está disponível antes de tentar reenvio
+                        var sefazDisponivel = await VerificarDisponibilidadeSefaz(xmlInfo.UF, xmlInfo.Homologacao);
+                        
+                        if (!sefazDisponivel)
+                        {
+                            _logger.LogWarning($"SEFAZ {xmlInfo.UF} ainda indisponível. Pulando XML: {xmlInfo.ChaveAcesso}");
+                            continue;
+                        }
+
+                        // 3. Tentar reenviar para SEFAZ
+                        var resultadoReenvio = await TentarReenviarXmlContingencia(xmlInfo);
+                        
+                        if (resultadoReenvio.Sucesso)
+                        {
+                            // 4. Mover para pasta de processados
+                            await _armazenamentoService.MoverXmlContingenciaParaProcessado(
+                                xmlInfo.CaminhoArquivo, 
+                                xmlInfo.ChaveAcesso, 
+                                cnpjEmpresa,
+                                resultadoReenvio.Protocolo
+                            );
+                            
+                            arquivosProcessados.Add(xmlInfo.ChaveAcesso);
+                            _logger.LogInformation($"XML de contingência processado com sucesso: {xmlInfo.ChaveAcesso}");
+                        }
+                        else
+                        {
+                            _logger.LogWarning($"Falha no reenvio do XML de contingência: {xmlInfo.ChaveAcesso}. Motivo: {resultadoReenvio.Mensagem}");
+                            
+                            // Incrementar contador de tentativas
+                            await _armazenamentoService.IncrementarTentativasContingencia(xmlInfo.CaminhoArquivo, resultadoReenvio.Mensagem);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, $"Erro ao processar XML de contingência: {xmlInfo.ChaveAcesso}");
+                    }
+                }
 
                 return arquivosProcessados;
             }
@@ -237,6 +290,104 @@ namespace nfse_backend.Services.NFe
             {
                 _logger.LogError(ex, "Erro ao processar fila de contingência");
                 return new List<string>();
+            }
+        }
+
+        private async Task<ResultadoReenvioContingencia> TentarReenviarXmlContingencia(XmlContingenciaInfo xmlInfo)
+        {
+            try
+            {
+                // Carregar conteúdo do XML
+                var xmlContent = await File.ReadAllTextAsync(xmlInfo.CaminhoArquivo);
+                
+                // Determinar tipo de operação baseado no conteúdo
+                if (xmlContent.Contains("enviNFe"))
+                {
+                    // XML de envio de lote
+                    var resultado = await _webServiceClient.EnviarLoteNFe(xmlContent, xmlInfo.UF, xmlInfo.Homologacao);
+                    return ProcessarResultadoReenvio(resultado, "ENVIO_LOTE");
+                }
+                else if (xmlContent.Contains("envEvento"))
+                {
+                    // XML de evento (EPEC)
+                    var resultado = await _webServiceClient.EnviarEvento(xmlContent, xmlInfo.UF, xmlInfo.Homologacao);
+                    return ProcessarResultadoReenvio(resultado, "EVENTO");
+                }
+                else
+                {
+                    return new ResultadoReenvioContingencia 
+                    { 
+                        Sucesso = false, 
+                        Mensagem = "Tipo de XML não identificado para reenvio" 
+                    };
+                }
+            }
+            catch (Exception ex)
+            {
+                return new ResultadoReenvioContingencia 
+                { 
+                    Sucesso = false, 
+                    Mensagem = $"Erro no reenvio: {ex.Message}" 
+                };
+            }
+        }
+
+        private ResultadoReenvioContingencia ProcessarResultadoReenvio(string resultado, string tipoOperacao)
+        {
+            try
+            {
+                var doc = new XmlDocument();
+                doc.LoadXml(resultado);
+
+                var nsManager = new XmlNamespaceManager(doc.NameTable);
+                nsManager.AddNamespace("nfe", "http://www.portalfiscal.inf.br/nfe");
+
+                var cStatNode = doc.SelectSingleNode("//nfe:cStat", nsManager);
+                var xMotivoNode = doc.SelectSingleNode("//nfe:xMotivo", nsManager);
+                var protocoloNode = doc.SelectSingleNode("//nfe:nProt", nsManager) ?? 
+                                   doc.SelectSingleNode("//nfe:nRec", nsManager);
+
+                if (cStatNode != null)
+                {
+                    var cStat = cStatNode.InnerText;
+                    var xMotivo = xMotivoNode?.InnerText ?? "";
+                    var protocolo = protocoloNode?.InnerText ?? "";
+
+                    // Códigos de sucesso
+                    if (cStat == "100" || cStat == "103" || cStat == "135" || cStat == "136")
+                    {
+                        return new ResultadoReenvioContingencia
+                        {
+                            Sucesso = true,
+                            Protocolo = protocolo,
+                            CodigoStatus = cStat,
+                            Mensagem = xMotivo
+                        };
+                    }
+                    else
+                    {
+                        return new ResultadoReenvioContingencia
+                        {
+                            Sucesso = false,
+                            CodigoStatus = cStat,
+                            Mensagem = $"Código {cStat}: {xMotivo}"
+                        };
+                    }
+                }
+
+                return new ResultadoReenvioContingencia 
+                { 
+                    Sucesso = false, 
+                    Mensagem = "Resposta da SEFAZ não contém código de status" 
+                };
+            }
+            catch (Exception ex)
+            {
+                return new ResultadoReenvioContingencia 
+                { 
+                    Sucesso = false, 
+                    Mensagem = $"Erro ao processar resposta: {ex.Message}" 
+                };
             }
         }
 

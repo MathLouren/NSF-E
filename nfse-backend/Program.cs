@@ -23,6 +23,7 @@ using nfse_backend.Services.Monitoramento;
 using nfse_backend.Services.Validation;
 using nfse_backend.Services.Calculation;
 using nfse_backend.Services.Audit;
+using nfse_backend.Services.Monitoring;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -73,6 +74,10 @@ builder.Services.AddScoped<AuditoriaService>();
 // Serviços de monitoramento
 builder.Services.AddSingleton<MonitoramentoService>();
 builder.Services.AddHostedService<MonitoramentoService>(provider => provider.GetRequiredService<MonitoramentoService>());
+
+// Novos serviços baseados na documentação oficial
+builder.Services.AddScoped<SchemaValidatorAprimorado>();
+builder.Services.AddScoped<WebServiceMonitor>();
 
 // HttpClient com Polly para resiliência
 builder.Services.AddHttpClient<SefazWebServiceClient>();

@@ -13,6 +13,7 @@ public class AppDbContext : DbContext
     public DbSet<Product> Products { get; set; }
     public DbSet<Service> Services { get; set; }
     public DbSet<Company> Companies { get; set; }
+    public DbSet<AuditLog> AuditLogs { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
